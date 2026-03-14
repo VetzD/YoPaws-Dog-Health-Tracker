@@ -461,13 +461,10 @@ export default function App() {
   const [dogProfile, setDogProfile] = useState(() =>
     safeRead("dogProfile", emptyDogProfile)
   );
-
   const [dailyLogs, setDailyLogs] = useState(() => safeRead("dailyLogs", []));
-
   const [healthSchedule, setHealthSchedule] = useState(() =>
     safeRead("healthSchedule", [])
   );
-
   const [medicationHistory, setMedicationHistory] = useState(() =>
     safeRead("medicationHistory", [])
   );
@@ -606,7 +603,6 @@ export default function App() {
 
   function saveScheduleItem(e) {
     e.preventDefault();
-
     if (!scheduleForm.itemName.trim()) return;
 
     const newItem = {
@@ -625,7 +621,6 @@ export default function App() {
 
   function saveMedication(e) {
     e.preventDefault();
-
     if (!medForm.medicationName.trim()) return;
 
     const newMed = {
@@ -672,14 +667,12 @@ export default function App() {
   function deleteScheduleItem(id) {
     const confirmed = window.confirm("Delete this health schedule item?");
     if (!confirmed) return;
-
     setHealthSchedule((prev) => prev.filter((item) => item.id !== id));
   }
 
   function deleteMedication(id) {
     const confirmed = window.confirm("Delete this medication entry?");
     if (!confirmed) return;
-
     setMedicationHistory((prev) => prev.filter((med) => med.id !== id));
   }
 
@@ -704,6 +697,116 @@ export default function App() {
     setMedForm(createEmptyMedForm());
   }
 
+  function handleSetupSubmit(e) {
+    e.preventDefault();
+    if (!dogProfile.name.trim()) {
+      window.alert("Please enter your dog's name.");
+      return;
+    }
+  }
+
+  if (!dogProfile.name) {
+    return (
+      <div style={pageStyle}>
+        <div style={{ maxWidth: "600px", margin: "80px auto" }}>
+          <div style={cardStyle}>
+            <h1 style={{ marginTop: 0 }}>Set Up Your Dog Profile</h1>
+            <p style={{ color: "#64748b", marginBottom: "20px" }}>
+              Add your dog's details to start tracking health, behaviour,
+              medication, and reminders.
+            </p>
+
+            <form onSubmit={handleSetupSubmit}>
+              <div style={{ marginBottom: "12px" }}>
+                <label>Dog name</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={dogProfile.name}
+                  onChange={(e) => updateDogProfile("name", e.target.value)}
+                  placeholder="e.g. Yoshi"
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Breed</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={dogProfile.breed}
+                  onChange={(e) => updateDogProfile("breed", e.target.value)}
+                  placeholder="e.g. Golden Retriever"
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Sex</label>
+                <select
+                  style={inputStyle}
+                  value={dogProfile.sex}
+                  onChange={(e) => updateDogProfile("sex", e.target.value)}
+                >
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Unknown</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Date of birth</label>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={dogProfile.dob}
+                  onChange={(e) => updateDogProfile("dob", e.target.value)}
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Weight</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={dogProfile.weight}
+                  onChange={(e) => updateDogProfile("weight", e.target.value)}
+                  placeholder="e.g. 28 kg"
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Desexed</label>
+                <select
+                  style={inputStyle}
+                  value={dogProfile.desexed}
+                  onChange={(e) => updateDogProfile("desexed", e.target.value)}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                  <option>Unknown</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label>Notes</label>
+                <textarea
+                  style={inputStyle}
+                  rows={3}
+                  value={dogProfile.notes}
+                  onChange={(e) => updateDogProfile("notes", e.target.value)}
+                  placeholder="Optional notes"
+                />
+              </div>
+
+              <button type="submit" style={buttonStyle}>
+                Save Dog Profile
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={pageStyle}>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
@@ -722,9 +825,8 @@ export default function App() {
                 Dog Health & Behaviour App
               </h1>
               <p style={{ marginTop: "10px", color: "#475569" }}>
-                Starts blank. Add your own dog profile, daily wellbeing logs,
-                health schedule, medication history, reminders, and save on this
-                device.
+                Track daily wellbeing, medications, reminders, and health
+                history for {dogProfile.name}.
               </p>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
@@ -1193,7 +1295,6 @@ export default function App() {
                     type="text"
                     value={dogProfile.name || ""}
                     readOnly
-                    placeholder="Add dog name in profile"
                   />
                 </div>
 
@@ -1662,15 +1763,14 @@ export default function App() {
                 lineHeight: "1.8",
               }}
             >
-              <li>Blank start with no demo entries</li>
-              <li>Dog registration details</li>
-              <li>Date of birth and birthday tracking</li>
+              <li>First-time setup screen</li>
+              <li>Dog profile editing</li>
               <li>Daily health, emotion, and behaviour logging</li>
-              <li>Compact H / E / B calendar display with emoji and colour</li>
-              <li>Health schedule for vaccines, treatments, and custom items</li>
-              <li>Medication history with active medication detection</li>
+              <li>Calendar view for saved daily logs</li>
+              <li>Health schedule reminders</li>
+              <li>Medication history</li>
               <li>Delete logs, schedule items, and medications</li>
-              <li>Print report and Save as PDF via browser print dialog</li>
+              <li>Print report and Save as PDF</li>
               <li>Local device saving with localStorage</li>
             </ul>
           </div>
