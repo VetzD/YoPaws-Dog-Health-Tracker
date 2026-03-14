@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "./supabaseClient";
 
 const colours = {
   Green: "🟢",
@@ -59,26 +58,6 @@ const deleteButtonStyle = {
   border: "1px solid #fecaca",
   background: "#fff1f2",
   color: "#b91c1c",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const topButtonStyle = {
-  padding: "12px 16px",
-  borderRadius: "14px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const darkTopButtonStyle = {
-  padding: "12px 16px",
-  borderRadius: "14px",
-  border: "none",
-  background: "#0f172a",
-  color: "#ffffff",
   fontWeight: "bold",
   cursor: "pointer",
 };
@@ -246,7 +225,6 @@ function dueSoonText(date) {
 
 function safeRead(key, fallback) {
   try {
-    if (!key) return fallback;
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : fallback;
   } catch {
@@ -480,105 +458,39 @@ export default function App() {
   const currentMonth = today.getMonth();
   const todayString = today.toISOString().slice(0, 10);
 
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [dataLoaded, setDataLoaded] = useState(false);
-
-  const [dogProfile, setDogProfile] = useState(emptyDogProfile);
-  const [dailyLogs, setDailyLogs] = useState([]);
-  const [healthSchedule, setHealthSchedule] = useState([]);
-  const [medicationHistory, setMedicationHistory] = useState([]);
+  const [dogProfile, setDogProfile] = useState(() =>
+    safeRead("dogProfile", emptyDogProfile)
+  );
+  const [dailyLogs, setDailyLogs] = useState(() => safeRead("dailyLogs", []));
+  const [healthSchedule, setHealthSchedule] = useState(() =>
+    safeRead("healthSchedule", [])
+  );
+  const [medicationHistory, setMedicationHistory] = useState(() =>
+    safeRead("medicationHistory", [])
+  );
 
   const [selectedDate, setSelectedDate] = useState(todayString);
-  const [dailyForm, setDailyForm] = useState(createEmptyDailyForm(""));
+  const [dailyForm, setDailyForm] = useState(() =>
+    createEmptyDailyForm(safeRead("dogProfile", emptyDogProfile).name || "")
+  );
   const [scheduleForm, setScheduleForm] = useState(createEmptyScheduleForm());
   const [medForm, setMedForm] = useState(createEmptyMedForm());
 
-  function getStorageKey(name) {
-    if (!session?.user?.id) return null;
-    return `yopaws:${session.user.id}:${name}`;
-  }
+  useEffect(() => {
+    localStorage.setItem("dogProfile", JSON.stringify(dogProfile));
+  }, [dogProfile]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    localStorage.setItem("dailyLogs", JSON.stringify(dailyLogs));
+  }, [dailyLogs]);
 
   useEffect(() => {
-    if (!session?.user?.id) {
-      setDogProfile(emptyDogProfile);
-      setDailyLogs([]);
-      setHealthSchedule([]);
-      setMedicationHistory([]);
-      setSelectedDate(todayString);
-      setDailyForm(createEmptyDailyForm(""));
-      setScheduleForm(createEmptyScheduleForm());
-      setMedForm(createEmptyMedForm());
-      setDataLoaded(false);
-      return;
-    }
-
-    const loadedDogProfile = safeRead(
-      getStorageKey("dogProfile"),
-      emptyDogProfile
-    );
-    const loadedDailyLogs = safeRead(getStorageKey("dailyLogs"), []);
-    const loadedHealthSchedule = safeRead(getStorageKey("healthSchedule"), []);
-    const loadedMedicationHistory = safeRead(
-      getStorageKey("medicationHistory"),
-      []
-    );
-
-    setDogProfile(loadedDogProfile);
-    setDailyLogs(loadedDailyLogs);
-    setHealthSchedule(loadedHealthSchedule);
-    setMedicationHistory(loadedMedicationHistory);
-    setSelectedDate(todayString);
-    setDailyForm(createEmptyDailyForm(loadedDogProfile.name || ""));
-    setScheduleForm(createEmptyScheduleForm());
-    setMedForm(createEmptyMedForm());
-    setDataLoaded(true);
-  }, [session, todayString]);
+    localStorage.setItem("healthSchedule", JSON.stringify(healthSchedule));
+  }, [healthSchedule]);
 
   useEffect(() => {
-    if (!session?.user?.id || !dataLoaded) return;
-    localStorage.setItem(
-      getStorageKey("dogProfile"),
-      JSON.stringify(dogProfile)
-    );
-  }, [dogProfile, session, dataLoaded]);
-
-  useEffect(() => {
-    if (!session?.user?.id || !dataLoaded) return;
-    localStorage.setItem(getStorageKey("dailyLogs"), JSON.stringify(dailyLogs));
-  }, [dailyLogs, session, dataLoaded]);
-
-  useEffect(() => {
-    if (!session?.user?.id || !dataLoaded) return;
-    localStorage.setItem(
-      getStorageKey("healthSchedule"),
-      JSON.stringify(healthSchedule)
-    );
-  }, [healthSchedule, session, dataLoaded]);
-
-  useEffect(() => {
-    if (!session?.user?.id || !dataLoaded) return;
-    localStorage.setItem(
-      getStorageKey("medicationHistory"),
-      JSON.stringify(medicationHistory)
-    );
-  }, [medicationHistory, session, dataLoaded]);
+    localStorage.setItem("medicationHistory", JSON.stringify(medicationHistory));
+  }, [medicationHistory]);
 
   useEffect(() => {
     setDailyForm((prev) => ({
@@ -643,19 +555,6 @@ export default function App() {
 
     return alerts;
   }, [dailyLogs]);
-
-  async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut();
-  }
 
   function updateDogProfile(field, value) {
     setDogProfile((prev) => ({ ...prev, [field]: value }));
@@ -779,14 +678,14 @@ export default function App() {
 
   function clearAllSavedData() {
     const confirmed = window.confirm(
-      "This will erase all saved dog data for your signed-in account on this device and reset the app to blank. Are you sure?"
+      "This will erase all saved dog data on this device and reset the app to blank. Are you sure?"
     );
     if (!confirmed) return;
 
-    localStorage.removeItem(getStorageKey("dogProfile"));
-    localStorage.removeItem(getStorageKey("dailyLogs"));
-    localStorage.removeItem(getStorageKey("healthSchedule"));
-    localStorage.removeItem(getStorageKey("medicationHistory"));
+    localStorage.removeItem("dogProfile");
+    localStorage.removeItem("dailyLogs");
+    localStorage.removeItem("healthSchedule");
+    localStorage.removeItem("medicationHistory");
 
     setDogProfile(emptyDogProfile);
     setDailyLogs([]);
@@ -806,72 +705,12 @@ export default function App() {
     }
   }
 
-  if (authLoading) {
-    return (
-      <div style={pageStyle}>
-        <div style={{ maxWidth: "520px", margin: "120px auto" }}>
-          <div style={cardStyle}>
-            <h1 style={{ marginTop: 0 }}>YoPaws Dog Health Tracker</h1>
-            <p style={{ color: "#475569", marginBottom: 0 }}>
-              Loading…
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div style={pageStyle}>
-        <div style={{ maxWidth: "560px", margin: "100px auto" }}>
-          <div style={cardStyle}>
-            <h1 style={{ marginTop: 0 }}>YoPaws Dog Health Tracker</h1>
-            <p style={{ color: "#475569", lineHeight: "1.7" }}>
-              Sign in with Google to access your dog health tracker.
-            </p>
-            <p style={{ color: "#64748b", lineHeight: "1.7" }}>
-              This version keeps records saved locally on this device for your
-              signed-in account. Cloud syncing into Supabase tables can be added
-              next.
-            </p>
-            <button type="button" onClick={signInWithGoogle} style={buttonStyle}>
-              Login with Google
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!dogProfile.name) {
     return (
       <div style={pageStyle}>
         <div style={{ maxWidth: "600px", margin: "80px auto" }}>
           <div style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                alignItems: "center",
-                marginBottom: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <h1 style={{ marginTop: 0, marginBottom: "4px" }}>
-                  Set Up Your Dog Profile
-                </h1>
-                <div style={{ color: "#64748b", fontSize: "14px" }}>
-                  Signed in as {session.user.email}
-                </div>
-              </div>
-              <button type="button" onClick={signOut} style={secondaryButtonStyle}>
-                Sign Out
-              </button>
-            </div>
-
+            <h1 style={{ marginTop: 0 }}>Set Up Your Dog Profile</h1>
             <p style={{ color: "#64748b", marginBottom: "20px" }}>
               Add your dog's details to start tracking health, behaviour,
               medication, and reminders.
@@ -989,9 +828,6 @@ export default function App() {
                 Track daily wellbeing, medications, reminders, and health
                 history for {dogProfile.name}.
               </p>
-              <div style={{ color: "#64748b", fontSize: "14px" }}>
-                Signed in as {session.user.email}
-              </div>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
               <button
@@ -1003,7 +839,15 @@ export default function App() {
                     medicationHistory
                   )
                 }
-                style={topButtonStyle}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "14px",
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#0f172a",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
               >
                 Print Report
               </button>
@@ -1016,23 +860,31 @@ export default function App() {
                     medicationHistory
                   )
                 }
-                style={darkTopButtonStyle}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "14px",
+                  border: "none",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
               >
                 Save as PDF
               </button>
               <button
                 onClick={clearAllSavedData}
                 style={{
-                  ...topButtonStyle,
+                  padding: "12px 16px",
+                  borderRadius: "14px",
                   border: "1px solid #fecaca",
                   background: "#fff1f2",
                   color: "#b91c1c",
+                  fontWeight: "bold",
+                  cursor: "pointer",
                 }}
               >
                 Clear Saved Data
-              </button>
-              <button onClick={signOut} style={secondaryButtonStyle}>
-                Sign Out
               </button>
             </div>
           </div>
@@ -1911,7 +1763,6 @@ export default function App() {
                 lineHeight: "1.8",
               }}
             >
-              <li>Google login first</li>
               <li>First-time setup screen</li>
               <li>Dog profile editing</li>
               <li>Daily health, emotion, and behaviour logging</li>
@@ -1920,7 +1771,7 @@ export default function App() {
               <li>Medication history</li>
               <li>Delete logs, schedule items, and medications</li>
               <li>Print report and Save as PDF</li>
-              <li>Per-user local device saving</li>
+              <li>Local device saving with localStorage</li>
             </ul>
           </div>
         </div>
