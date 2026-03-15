@@ -1,1888 +1,619 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-
-const colours = {
-  Green: "🟢",
-  Yellow: "🟡",
-  Red: "🔴",
-};
-
-const pageStyle = {
-  minHeight: "100vh",
-  background: "#f4f7fb",
-  padding: "24px",
-  fontFamily: "Arial, sans-serif",
-  color: "#1e293b",
-};
-
-const cardStyle = {
-  background: "#ffffff",
-  border: "1px solid #dbe3ea",
-  borderRadius: "18px",
-  padding: "16px",
-  boxShadow: "0 2px 10px rgba(15, 23, 42, 0.05)",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  marginTop: "4px",
-  borderRadius: "10px",
-  border: "1px solid #cbd5e1",
-  boxSizing: "border-box",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "14px",
-  border: "none",
-  background: "#0f172a",
-  color: "#fff",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle = {
-  padding: "10px 12px",
-  borderRadius: "12px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const deleteButtonStyle = {
-  padding: "8px 10px",
-  borderRadius: "10px",
-  border: "1px solid #fecaca",
-  background: "#fff1f2",
-  color: "#b91c1c",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const topButtonStyle = {
-  padding: "12px 16px",
-  borderRadius: "14px",
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const darkTopButtonStyle = {
-  padding: "12px 16px",
-  borderRadius: "14px",
-  border: "none",
-  background: "#0f172a",
-  color: "#ffffff",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const emptyDogProfile = {
-  name: "",
-  breed: "",
-  sex: "Unknown",
-  dob: "",
-  weight: "",
-  desexed: "Unknown",
-  photo: "",
-  notes: "",
-};
-
-function createEmptyDailyForm(dogName = "") {
-  const today = new Date().toISOString().slice(0, 10);
-  return {
-    date: today,
-    dog: dogName,
-    health: "Green",
-    emotion: "Green",
-    behaviour: "Green",
-    appetite: "Normal",
-    toileting: "Normal",
-    medication: "",
-    trigger: "None",
-    notes: "",
-  };
+:root {
+  --bg: #1f2326;
+  --bg-soft: #232831;
+  --panel: rgba(255, 255, 255, 0.05);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.6);
+  --muted-2: rgba(255, 255, 255, 0.45);
+  --brand: #18a3a8;
+  --brand-2: #7fe3de;
+  --violet: #c084fc;
+  --yellow: #fde68a;
+  --cyan: #67e8f9;
+  --danger: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --radius-xl: 32px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --font: Inter, Arial, sans-serif;
 }
 
-function createEmptyScheduleForm() {
-  return {
-    itemName: "",
-    type: "Vaccine",
-    dateGiven: "",
-    nextDueDate: "",
-    repeatFrequency: "",
-    reminder: "7 days before",
-    notes: "",
-  };
+* {
+  box-sizing: border-box;
 }
 
-function createEmptyMedForm() {
-  return {
-    medicationName: "",
-    dose: "",
-    frequency: "Once daily",
-    foodInstruction: "With food",
-    startDate: "",
-    endDate: "",
-    reason: "",
-    prescribedBy: "",
-    notes: "",
-  };
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
 }
 
-function getStatusColor(status) {
-  if (status === "Green") return "#15803d";
-  if (status === "Yellow") return "#a16207";
-  return "#b91c1c";
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+button {
+  cursor: pointer;
 }
 
-function getMonthGrid(year, month) {
-  const firstDay = new Date(year, month, 1);
-  const startDay = firstDay.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells = [];
-
-  for (let i = 0; i < startDay; i++) cells.push(null);
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day);
-    cells.push(d.toISOString().slice(0, 10));
-  }
-
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  return cells;
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(148, 69, 149, 0.12), transparent 30%),
+    linear-gradient(180deg, #232831 0%, #1b1f24 100%);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
 }
 
-function getAgeText(dob) {
-  if (!dob) return "";
-  const birth = new Date(dob + "T00:00:00");
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  let months = now.getMonth() - birth.getMonth();
-
-  if (now.getDate() < birth.getDate()) {
-    months -= 1;
-  }
-
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-
-  if (years <= 0) {
-    return `${months} month${months === 1 ? "" : "s"}`;
-  }
-
-  if (months === 0) {
-    return `${years} year${years === 1 ? "" : "s"}`;
-  }
-
-  return `${years} year${years === 1 ? "" : "s"} ${months} month${
-    months === 1 ? "" : "s"
-  }`;
+.phone-card {
+  width: 100%;
+  max-width: 420px;
+  min-height: calc(100vh - 32px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-function getBirthdayInfo(dob) {
-  if (!dob) return "";
-  const birth = new Date(dob + "T00:00:00");
-  const now = new Date();
-
-  let nextBirthday = new Date(
-    now.getFullYear(),
-    birth.getMonth(),
-    birth.getDate()
-  );
-
-  if (
-    nextBirthday < new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  ) {
-    nextBirthday = new Date(
-      now.getFullYear() + 1,
-      birth.getMonth(),
-      birth.getDate()
-    );
-  }
-
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffDays = Math.round((nextBirthday - today) / msPerDay);
-
-  if (diffDays === 0) return "Birthday is today 🎉";
-  if (diffDays === 1) return "Birthday is tomorrow";
-  return `Birthday in ${diffDays} days`;
+.setup-card {
+  max-width: 560px;
+  min-height: auto;
+  padding: 20px;
 }
 
-function dueSoonText(date) {
-  if (!date) return "";
-  const due = new Date(date + "T00:00:00");
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = Math.round((due - today) / (24 * 60 * 60 * 1000));
-
-  if (diff < 0) {
-    return `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? "" : "s"}`;
-  }
-  if (diff === 0) return "Due today";
-  if (diff === 1) return "Due tomorrow";
-  return `Due in ${diff} days`;
+.app-header {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-function safeRead(key, fallback) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
+.header-left,
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-export default function App() {
-  const importFileRef = useRef(null);
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 18px;
+  background: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 12px 30px rgba(24, 163, 168, 0.3);
+  flex-shrink: 0;
+}
 
-  function buildPrintableHtml(
-    dogProfile,
-    dailyLogs,
-    healthSchedule,
-    medicationHistory
-  ) {
-    const sortedLogs = [...dailyLogs].sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
-    const sortedSchedule = [...healthSchedule].sort((a, b) =>
-      (a.nextDueDate || "").localeCompare(b.nextDueDate || "")
-    );
-    const sortedMeds = [...medicationHistory].sort((a, b) =>
-      (a.startDate || "").localeCompare(b.startDate || "")
-    );
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 20px;
+}
 
-    const logRows = sortedLogs
-      .map(
-        (log) => `
-          <tr>
-            <td>${formatDate(log.date)}</td>
-            <td>H ❤️ ${colours[log.health]} ${log.health}<br/>E 🧠 ${
-          colours[log.emotion]
-        } ${log.emotion}<br/>B 🐶 ${colours[log.behaviour]} ${
-          log.behaviour
-        }</td>
-            <td>${log.appetite || "—"}</td>
-            <td>${log.toileting || "—"}</td>
-            <td>${log.medication || "—"}</td>
-            <td>${log.trigger || "—"}</td>
-            <td>${log.notes || "—"}</td>
-          </tr>
-        `
-      )
-      .join("");
+.title {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.15;
+}
 
-    const scheduleRows = sortedSchedule
-      .map(
-        (item) => `
-          <tr>
-            <td>${item.itemName || "—"}</td>
-            <td>${item.type || "—"}</td>
-            <td>${item.dateGiven ? formatDate(item.dateGiven) : "—"}</td>
-            <td>${item.nextDueDate ? formatDate(item.nextDueDate) : "—"}</td>
-            <td>${item.repeatFrequency || "—"}</td>
-            <td>${item.reminder || "—"}</td>
-            <td>${item.notes || "—"}</td>
-          </tr>
-        `
-      )
-      .join("");
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
 
-    const medRows = sortedMeds
-      .map(
-        (med) => `
-          <tr>
-            <td>${med.medicationName || "—"}</td>
-            <td>${med.dose || "—"}</td>
-            <td>${med.frequency || "—"}</td>
-            <td>${med.foodInstruction || "—"}</td>
-            <td>${med.startDate ? formatDate(med.startDate) : "—"}</td>
-            <td>${med.endDate ? formatDate(med.endDate) : "Ongoing"}</td>
-            <td>${med.reason || "—"}</td>
-            <td>${med.prescribedBy || "—"}</td>
-            <td>${med.notes || "—"}</td>
-          </tr>
-        `
-      )
-      .join("");
+.app-main {
+  flex: 1;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
 
-    return `
-      <html>
-        <head>
-          <title>${dogProfile.name || "Dog"} Health Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; }
-            h1, h2, h3 { margin-bottom: 8px; }
-            .meta { margin-bottom: 20px; line-height: 1.7; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; vertical-align: top; font-size: 12px; }
-            th { background: #f8fafc; }
-            .section { margin-bottom: 28px; }
-            .small { color: #475569; font-size: 13px; }
-            @media print {
-              body { padding: 0; }
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${dogProfile.name || "Dog"} Health & Behaviour Report</h1>
-          <div class="meta">
-            <div><strong>Breed:</strong> ${dogProfile.breed || "—"}</div>
-            <div><strong>Sex:</strong> ${dogProfile.sex || "—"}</div>
-            <div><strong>Date of birth:</strong> ${
-              dogProfile.dob ? formatDate(dogProfile.dob) : "—"
-            }</div>
-            <div><strong>Age:</strong> ${getAgeText(dogProfile.dob) || "—"}</div>
-            <div><strong>Weight:</strong> ${dogProfile.weight || "—"}</div>
-            <div><strong>Desexed:</strong> ${dogProfile.desexed || "—"}</div>
-            <div><strong>Notes:</strong> ${dogProfile.notes || "—"}</div>
-          </div>
+.hero-card,
+.panel-card {
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
 
-          <div class="section">
-            <h2>Daily Logs</h2>
-            <div class="small">H = Health, E = Emotion, B = Behaviour</div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Appetite</th>
-                  <th>Toileting</th>
-                  <th>Medication Note</th>
-                  <th>Trigger</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>${
-                logRows || '<tr><td colspan="7">No daily logs yet.</td></tr>'
-              }</tbody>
-            </table>
-          </div>
+.hero-card {
+  padding: 16px;
+}
 
-          <div class="section">
-            <h2>Health Schedule</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Type</th>
-                  <th>Date Given</th>
-                  <th>Next Due</th>
-                  <th>Repeat</th>
-                  <th>Reminder</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>${
-                scheduleRows ||
-                '<tr><td colspan="7">No health schedule items yet.</td></tr>'
-              }</tbody>
-            </table>
-          </div>
+.hero-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
 
-          <div class="section">
-            <h2>Medication History</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Dose</th>
-                  <th>Frequency</th>
-                  <th>How to Take</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th>Reason</th>
-                  <th>Prescribed By</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>${
-                medRows ||
-                '<tr><td colspan="9">No medication history yet.</td></tr>'
-              }</tbody>
-            </table>
-          </div>
-        </body>
-      </html>
-    `;
+.dog-photo {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 2px solid rgba(24, 163, 168, 0.45);
+  flex-shrink: 0;
+}
+
+.hero-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-name-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dog-name {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.dog-meta {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hero-stats {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.muted-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.weight-value {
+  margin: 4px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.tiny-muted {
+  color: var(--muted-2);
+  font-size: 0.75rem;
+  margin: 6px 0 0;
+}
+
+.mini-bars {
+  width: 100px;
+  height: 58px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.mini-bar {
+  flex: 1;
+  border-radius: 999px;
+  background: linear-gradient(to top, var(--brand), var(--brand-2));
+  opacity: 0.95;
+}
+
+.panel-card {
+  padding: 16px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.panel-heading h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.list-stack,
+.stack-lg,
+.stack-md,
+.stack-sm,
+.button-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.stack-lg {
+  gap: 14px;
+}
+
+.stack-md {
+  gap: 12px;
+}
+
+.stack-sm {
+  gap: 8px;
+}
+
+.top-gap {
+  margin-top: 16px;
+}
+
+.top-gap-sm {
+  margin-top: 8px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.stat-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font-weight: 600;
+}
+
+.stat-value {
+  font-weight: 700;
+}
+
+.stat-violet {
+  color: var(--violet);
+}
+
+.stat-yellow {
+  color: var(--yellow);
+}
+
+.stat-cyan {
+  color: var(--cyan);
+}
+
+.stat-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 4px;
+}
+
+.chevron {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1.4rem;
+}
+
+.quick-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-button {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  padding: 14px 16px;
+  text-align: left;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.quick-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.quick-violet {
+  background: rgba(168, 85, 247, 0.16);
+  border-color: rgba(192, 132, 252, 0.28);
+  color: #e9d5ff;
+}
+
+.quick-yellow {
+  background: rgba(234, 179, 8, 0.16);
+  border-color: rgba(253, 224, 71, 0.28);
+  color: #fef3c7;
+}
+
+.quick-cyan {
+  background: rgba(6, 182, 212, 0.16);
+  border-color: rgba(103, 232, 249, 0.28);
+  color: #cffafe;
+}
+
+.reminder-card,
+.selected-log-box {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+}
+
+.reminder-title {
+  font-weight: 700;
+}
+
+.reminder-meta,
+.muted-detail,
+.empty-text,
+.subtitle-block {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.88rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 12px 13px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  outline: none;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: rgba(24, 163, 168, 0.7);
+  box-shadow: 0 0 0 3px rgba(24, 163, 168, 0.18);
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  width: 100%;
+  border-radius: 18px;
+  padding: 13px 14px;
+  font-weight: 700;
+  border: none;
+}
+
+.primary-button {
+  background: var(--brand);
+  color: var(--text);
+  box-shadow: 0 18px 30px rgba(24, 163, 168, 0.25);
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+}
+
+.danger-button {
+  background: var(--danger-bg);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+}
+
+.button-row > * {
+  flex: 1;
+}
+
+.calendar-grid-header,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calendar-day-name {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.calendar-empty,
+.calendar-cell {
+  min-height: 78px;
+  border-radius: 16px;
+}
+
+.calendar-empty {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.calendar-cell {
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  text-align: left;
+  color: var(--text);
+}
+
+.calendar-selected {
+  border-color: var(--brand);
+}
+
+.calendar-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.calendar-dots {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-placeholder {
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 1.2rem;
+}
+
+.tiny-chip,
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.tiny-chip {
+  width: fit-content;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+}
+
+.status-chip {
+  padding: 6px 10px;
+  font-size: 0.76rem;
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #86efac;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.chip-yellow {
+  background: rgba(234, 179, 8, 0.16);
+  color: #fde68a;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.chip-red {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.bottom-nav {
+  border-top: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.16);
+  padding: 10px 12px 14px;
+}
+
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.nav-button {
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--muted-2);
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 0.74rem;
+}
+
+.nav-active {
+  color: var(--brand);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-icon {
+  font-size: 1.15rem;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 0;
   }
 
-  function handlePrintReport(
-    dogProfile,
-    dailyLogs,
-    healthSchedule,
-    medicationHistory
-  ) {
-    const printWindow = window.open("", "_blank", "width=1200,height=900");
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(
-      buildPrintableHtml(
-        dogProfile,
-        dailyLogs,
-        healthSchedule,
-        medicationHistory
-      )
-    );
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 300);
+  .phone-card {
+    max-width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    border: none;
   }
 
-  function handleSavePdf(
-    dogProfile,
-    dailyLogs,
-    healthSchedule,
-    medicationHistory
-  ) {
-    const pdfWindow = window.open("", "_blank", "width=1200,height=900");
-    if (!pdfWindow) return;
-    pdfWindow.document.open();
-    pdfWindow.document.write(
-      buildPrintableHtml(
-        dogProfile,
-        dailyLogs,
-        healthSchedule,
-        medicationHistory
-      )
-    );
-    pdfWindow.document.close();
-    pdfWindow.focus();
-    setTimeout(() => {
-      pdfWindow.print();
-    }, 300);
+  .dog-name {
+    font-size: 1.7rem;
   }
 
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
-  const todayString = today.toISOString().slice(0, 10);
-
-  const [dogProfile, setDogProfile] = useState(() =>
-    safeRead("dogProfile", emptyDogProfile)
-  );
-  const [dailyLogs, setDailyLogs] = useState(() => safeRead("dailyLogs", []));
-  const [healthSchedule, setHealthSchedule] = useState(() =>
-    safeRead("healthSchedule", [])
-  );
-  const [medicationHistory, setMedicationHistory] = useState(() =>
-    safeRead("medicationHistory", [])
-  );
-
-  const [selectedDate, setSelectedDate] = useState(todayString);
-  const [dailyForm, setDailyForm] = useState(() =>
-    createEmptyDailyForm(safeRead("dogProfile", emptyDogProfile).name || "")
-  );
-  const [scheduleForm, setScheduleForm] = useState(createEmptyScheduleForm());
-  const [medForm, setMedForm] = useState(createEmptyMedForm());
-
-  useEffect(() => {
-    localStorage.setItem("dogProfile", JSON.stringify(dogProfile));
-  }, [dogProfile]);
-
-  useEffect(() => {
-    localStorage.setItem("dailyLogs", JSON.stringify(dailyLogs));
-  }, [dailyLogs]);
-
-  useEffect(() => {
-    localStorage.setItem("healthSchedule", JSON.stringify(healthSchedule));
-  }, [healthSchedule]);
-
-  useEffect(() => {
-    localStorage.setItem("medicationHistory", JSON.stringify(medicationHistory));
-  }, [medicationHistory]);
-
-  useEffect(() => {
-    setDailyForm((prev) => ({
-      ...prev,
-      dog: dogProfile.name || "",
-    }));
-  }, [dogProfile.name]);
-
-  const monthGrid = useMemo(
-    () => getMonthGrid(currentYear, currentMonth),
-    [currentYear, currentMonth]
-  );
-
-  const logsByDate = useMemo(() => {
-    const map = new Map();
-    dailyLogs.forEach((log) => map.set(log.date, log));
-    return map;
-  }, [dailyLogs]);
-
-  const selectedLog = logsByDate.get(selectedDate);
-
-  const upcomingItems = useMemo(() => {
-    return [...healthSchedule]
-      .filter((item) => item.nextDueDate)
-      .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
-      .slice(0, 5);
-  }, [healthSchedule]);
-
-  const activeMeds = useMemo(() => {
-    return medicationHistory.filter((med) => !med.endDate);
-  }, [medicationHistory]);
-
-  const patternAlerts = useMemo(() => {
-    if (dailyLogs.length === 0) {
-      return ["No pattern alerts yet. Start adding daily logs."];
-    }
-
-    const sorted = [...dailyLogs].sort((a, b) => a.date.localeCompare(b.date));
-    const alerts = [];
-    const recent = sorted.slice(-3);
-
-    if (recent.length === 3 && recent.every((x) => x.health === "Yellow")) {
-      alerts.push("Health has been Yellow for 3 entries in a row.");
-    }
-
-    if (recent.length === 3 && recent.every((x) => x.emotion === "Yellow")) {
-      alerts.push("Emotion has been Yellow for 3 entries in a row.");
-    }
-
-    if (recent.length === 3 && recent.every((x) => x.behaviour === "Yellow")) {
-      alerts.push("Behaviour has been Yellow for 3 entries in a row.");
-    }
-
-    const redHealth = sorted.filter((x) => x.health === "Red").length;
-    if (redHealth >= 2) {
-      alerts.push("There have been multiple Red health entries.");
-    }
-
-    if (alerts.length === 0) {
-      alerts.push("No major pattern alerts right now.");
-    }
-
-    return alerts;
-  }, [dailyLogs]);
-
-  function updateDogProfile(field, value) {
-    setDogProfile((prev) => ({ ...prev, [field]: value }));
+  .button-row {
+    flex-direction: column;
   }
-
-  function updateDailyForm(field, value) {
-    setDailyForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function updateScheduleForm(field, value) {
-    setScheduleForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function updateMedForm(field, value) {
-    setMedForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function saveDailyLog(e) {
-    e.preventDefault();
-
-    if (!dailyForm.date) return;
-
-    const existingIndex = dailyLogs.findIndex(
-      (log) => log.date === dailyForm.date
-    );
-
-    const newLog = {
-      ...dailyForm,
-      id: existingIndex >= 0 ? dailyLogs[existingIndex].id : Date.now(),
-      dog: dogProfile.name || dailyForm.dog || "Dog",
-    };
-
-    if (existingIndex >= 0) {
-      const updated = [...dailyLogs];
-      updated[existingIndex] = newLog;
-      setDailyLogs(updated.sort((a, b) => a.date.localeCompare(b.date)));
-    } else {
-      setDailyLogs((prev) =>
-        [...prev, newLog].sort((a, b) => a.date.localeCompare(b.date))
-      );
-    }
-
-    setSelectedDate(dailyForm.date);
-    setDailyForm(createEmptyDailyForm(dogProfile.name || ""));
-  }
-
-  function saveScheduleItem(e) {
-    e.preventDefault();
-    if (!scheduleForm.itemName.trim()) return;
-
-    const newItem = {
-      ...scheduleForm,
-      id: Date.now(),
-    };
-
-    setHealthSchedule((prev) =>
-      [...prev, newItem].sort((a, b) =>
-        (a.nextDueDate || "").localeCompare(b.nextDueDate || "")
-      )
-    );
-
-    setScheduleForm(createEmptyScheduleForm());
-  }
-
-  function saveMedication(e) {
-    e.preventDefault();
-    if (!medForm.medicationName.trim()) return;
-
-    const newMed = {
-      ...medForm,
-      id: Date.now(),
-    };
-
-    setMedicationHistory((prev) =>
-      [...prev, newMed].sort((a, b) =>
-        (a.startDate || "").localeCompare(b.startDate || "")
-      )
-    );
-
-    setMedForm(createEmptyMedForm());
-  }
-
-  function loadLogIntoForm(log) {
-    setDailyForm({
-      date: log.date || todayString,
-      dog: log.dog || dogProfile.name || "",
-      health: log.health || "Green",
-      emotion: log.emotion || "Green",
-      behaviour: log.behaviour || "Green",
-      appetite: log.appetite || "Normal",
-      toileting: log.toileting || "Normal",
-      medication: log.medication || "",
-      trigger: log.trigger || "None",
-      notes: log.notes || "",
-    });
-  }
-
-  function deleteDailyLog(id) {
-    const confirmed = window.confirm("Delete this daily log?");
-    if (!confirmed) return;
-
-    setDailyLogs((prev) => prev.filter((log) => log.id !== id));
-
-    if (selectedLog?.id === id) {
-      setSelectedDate(todayString);
-      setDailyForm(createEmptyDailyForm(dogProfile.name || ""));
-    }
-  }
-
-  function deleteScheduleItem(id) {
-    const confirmed = window.confirm("Delete this health schedule item?");
-    if (!confirmed) return;
-    setHealthSchedule((prev) => prev.filter((item) => item.id !== id));
-  }
-
-  function deleteMedication(id) {
-    const confirmed = window.confirm("Delete this medication entry?");
-    if (!confirmed) return;
-    setMedicationHistory((prev) => prev.filter((med) => med.id !== id));
-  }
-
-  function clearAllSavedData() {
-    const confirmed = window.confirm(
-      "This will erase all saved dog data on this device and reset the app to blank. Are you sure?"
-    );
-    if (!confirmed) return;
-
-    localStorage.removeItem("dogProfile");
-    localStorage.removeItem("dailyLogs");
-    localStorage.removeItem("healthSchedule");
-    localStorage.removeItem("medicationHistory");
-
-    setDogProfile(emptyDogProfile);
-    setDailyLogs([]);
-    setHealthSchedule([]);
-    setMedicationHistory([]);
-    setSelectedDate(todayString);
-    setDailyForm(createEmptyDailyForm(""));
-    setScheduleForm(createEmptyScheduleForm());
-    setMedForm(createEmptyMedForm());
-  }
-
-  function exportBackup() {
-    const backupData = {
-      exportedAt: new Date().toISOString(),
-      version: "1.0",
-      dogProfile,
-      dailyLogs,
-      healthSchedule,
-      medicationHistory,
-    };
-
-    const dogName = dogProfile.name
-      ? dogProfile.name.toLowerCase().replace(/\s+/g, "-")
-      : "dog-health";
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    const filename = `${dogName}-backup-${dateStamp}.json`;
-
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
-      type: "application/json",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleImportClick() {
-    if (importFileRef.current) {
-      importFileRef.current.click();
-    }
-  }
-
-  function importBackup(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target?.result);
-
-        const importedDogProfile =
-          parsed?.dogProfile && typeof parsed.dogProfile === "object"
-            ? { ...emptyDogProfile, ...parsed.dogProfile }
-            : emptyDogProfile;
-
-        const importedDailyLogs = Array.isArray(parsed?.dailyLogs)
-          ? parsed.dailyLogs
-          : [];
-        const importedHealthSchedule = Array.isArray(parsed?.healthSchedule)
-          ? parsed.healthSchedule
-          : [];
-        const importedMedicationHistory = Array.isArray(parsed?.medicationHistory)
-          ? parsed.medicationHistory
-          : [];
-
-        const confirmed = window.confirm(
-          "Import this backup and replace the current data in the app?"
-        );
-        if (!confirmed) return;
-
-        setDogProfile(importedDogProfile);
-        setDailyLogs(importedDailyLogs);
-        setHealthSchedule(importedHealthSchedule);
-        setMedicationHistory(importedMedicationHistory);
-        setSelectedDate(todayString);
-        setDailyForm(createEmptyDailyForm(importedDogProfile.name || ""));
-        setScheduleForm(createEmptyScheduleForm());
-        setMedForm(createEmptyMedForm());
-
-        window.alert("Backup imported successfully.");
-      } catch {
-        window.alert(
-          "That file could not be imported. Please choose a valid YoPaws backup JSON file."
-        );
-      } finally {
-        event.target.value = "";
-      }
-    };
-
-    reader.readAsText(file);
-  }
-
-  function handleSetupSubmit(e) {
-    e.preventDefault();
-    if (!dogProfile.name.trim()) {
-      window.alert("Please enter your dog's name.");
-      return;
-    }
-  }
-
-  if (!dogProfile.name) {
-    return (
-      <div style={pageStyle}>
-        <div style={{ maxWidth: "600px", margin: "80px auto" }}>
-          <div style={cardStyle}>
-            <h1 style={{ marginTop: 0 }}>Set Up Your Dog Profile</h1>
-            <p style={{ color: "#64748b", marginBottom: "20px" }}>
-              Add your dog's details to start tracking health, behaviour,
-              medication, and reminders.
-            </p>
-
-            <form onSubmit={handleSetupSubmit}>
-              <div style={{ marginBottom: "12px" }}>
-                <label>Dog name</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.name}
-                  onChange={(e) => updateDogProfile("name", e.target.value)}
-                  placeholder="e.g. Yoshi"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Breed</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.breed}
-                  onChange={(e) => updateDogProfile("breed", e.target.value)}
-                  placeholder="e.g. Golden Retriever"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Sex</label>
-                <select
-                  style={inputStyle}
-                  value={dogProfile.sex}
-                  onChange={(e) => updateDogProfile("sex", e.target.value)}
-                >
-                  <option>Female</option>
-                  <option>Male</option>
-                  <option>Unknown</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Date of birth</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={dogProfile.dob}
-                  onChange={(e) => updateDogProfile("dob", e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Weight</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.weight}
-                  onChange={(e) => updateDogProfile("weight", e.target.value)}
-                  placeholder="e.g. 28 kg"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Desexed</label>
-                <select
-                  style={inputStyle}
-                  value={dogProfile.desexed}
-                  onChange={(e) => updateDogProfile("desexed", e.target.value)}
-                >
-                  <option>No</option>
-                  <option>Yes</option>
-                  <option>Unknown</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Notes</label>
-                <textarea
-                  style={inputStyle}
-                  rows={3}
-                  value={dogProfile.notes}
-                  onChange={(e) => updateDogProfile("notes", e.target.value)}
-                  placeholder="Optional notes"
-                />
-              </div>
-
-              <button type="submit" style={buttonStyle}>
-                Save Dog Profile
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={pageStyle}>
-      <input
-        ref={importFileRef}
-        type="file"
-        accept=".json,application/json"
-        style={{ display: "none" }}
-        onChange={importBackup}
-      />
-
-      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-        <div style={{ ...cardStyle, marginBottom: "20px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h1 style={{ margin: 0, fontSize: "32px" }}>
-                Dog Health & Behaviour App
-              </h1>
-              <p style={{ marginTop: "10px", color: "#475569" }}>
-                Track daily wellbeing, medications, reminders, and health
-                history for {dogProfile.name}.
-              </p>
-              <div style={{ color: "#64748b", fontSize: "14px" }}>
-                Auto-saves on this device. You can also export a backup file.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <button
-                onClick={() =>
-                  handlePrintReport(
-                    dogProfile,
-                    dailyLogs,
-                    healthSchedule,
-                    medicationHistory
-                  )
-                }
-                style={topButtonStyle}
-              >
-                Print Report
-              </button>
-              <button
-                onClick={() =>
-                  handleSavePdf(
-                    dogProfile,
-                    dailyLogs,
-                    healthSchedule,
-                    medicationHistory
-                  )
-                }
-                style={darkTopButtonStyle}
-              >
-                Save as PDF
-              </button>
-              <button onClick={exportBackup} style={topButtonStyle}>
-                Export Backup
-              </button>
-              <button onClick={handleImportClick} style={topButtonStyle}>
-                Import Backup
-              </button>
-              <button
-                onClick={clearAllSavedData}
-                style={{
-                  ...topButtonStyle,
-                  border: "1px solid #fecaca",
-                  background: "#fff1f2",
-                  color: "#b91c1c",
-                }}
-              >
-                Clear Saved Data
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 1fr 1fr",
-            gap: "20px",
-            marginBottom: "20px",
-          }}
-        >
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Dog Profile</h2>
-            <div style={{ marginBottom: "10px" }}>
-              <strong>{dogProfile.name || "No dog name yet"}</strong>
-            </div>
-            <div style={{ color: "#475569", lineHeight: "1.7" }}>
-              <div>Breed: {dogProfile.breed || "—"}</div>
-              <div>Sex: {dogProfile.sex || "—"}</div>
-              <div>
-                Date of birth:{" "}
-                {dogProfile.dob ? formatDate(dogProfile.dob) : "—"}
-              </div>
-              <div>Age: {getAgeText(dogProfile.dob) || "—"}</div>
-              <div>{getBirthdayInfo(dogProfile.dob) || ""}</div>
-              <div>Weight: {dogProfile.weight || "—"}</div>
-              <div>Desexed: {dogProfile.desexed || "—"}</div>
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Upcoming Reminders</h2>
-            {upcomingItems.length > 0 ? (
-              upcomingItems.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: "10px",
-                    borderRadius: "12px",
-                    background: "#f8fafc",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <div style={{ fontWeight: "bold" }}>{item.itemName}</div>
-                  <div style={{ fontSize: "14px", color: "#475569" }}>
-                    {item.type}
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#475569" }}>
-                    {item.nextDueDate
-                      ? dueSoonText(item.nextDueDate)
-                      : "No due date"}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ color: "#64748b" }}>No reminder items yet.</div>
-            )}
-          </div>
-
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Active Medications</h2>
-            {activeMeds.length > 0 ? (
-              activeMeds.map((med) => (
-                <div
-                  key={med.id}
-                  style={{
-                    padding: "10px",
-                    borderRadius: "12px",
-                    background: "#f8fafc",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <div style={{ fontWeight: "bold" }}>{med.medicationName}</div>
-                  <div style={{ fontSize: "14px", color: "#475569" }}>
-                    {med.dose || "—"} · {med.frequency || "—"}
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#475569" }}>
-                    {med.foodInstruction || "—"}
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#475569" }}>
-                    Started: {med.startDate ? formatDate(med.startDate) : "—"}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ color: "#64748b" }}>No active medications.</div>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gap: "20px",
-            marginBottom: "20px",
-          }}
-        >
-          <div>
-            <div style={{ ...cardStyle, marginBottom: "20px" }}>
-              <h2 style={{ marginTop: 0 }}>
-                {new Date(currentYear, currentMonth).toLocaleDateString(
-                  "en-AU",
-                  {
-                    month: "long",
-                    year: "numeric",
-                  }
-                )}
-              </h2>
-
-              <div
-                style={{
-                  marginBottom: "10px",
-                  fontSize: "12px",
-                  color: "#64748b",
-                }}
-              >
-                H = Health · E = Emotion · B = Behaviour
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "8px",
-                  marginBottom: "8px",
-                }}
-              >
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (day) => (
-                    <div
-                      key={day}
-                      style={{
-                        textAlign: "center",
-                        fontSize: "12px",
-                        color: "#64748b",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {day}
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "8px",
-                }}
-              >
-                {monthGrid.map((date, index) => {
-                  if (!date) {
-                    return (
-                      <div
-                        key={index}
-                        style={{
-                          minHeight: "78px",
-                          borderRadius: "14px",
-                          background: "#e2e8f0",
-                        }}
-                      />
-                    );
-                  }
-
-                  const log = logsByDate.get(date);
-                  const isSelected = selectedDate === date;
-
-                  return (
-                    <button
-                      key={date}
-                      onClick={() => {
-                        setSelectedDate(date);
-                        if (log) {
-                          loadLogIntoForm(log);
-                        } else {
-                          setDailyForm({
-                            ...createEmptyDailyForm(dogProfile.name || ""),
-                            date,
-                          });
-                        }
-                      }}
-                      style={{
-                        minHeight: "78px",
-                        borderRadius: "14px",
-                        border: isSelected
-                          ? "2px solid #0f172a"
-                          : "1px solid #dbe3ea",
-                        background: "#fff",
-                        padding: "8px",
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>
-                        {new Date(date + "T00:00:00").getDate()}
-                      </div>
-
-                      {log ? (
-                        <div
-                          style={{
-                            marginTop: "6px",
-                            fontSize: "10px",
-                            lineHeight: "1.3",
-                          }}
-                        >
-                          <div style={{ color: getStatusColor(log.health) }}>
-                            H ❤️ {colours[log.health]}
-                          </div>
-                          <div style={{ color: getStatusColor(log.emotion) }}>
-                            E 🧠 {colours[log.emotion]}
-                          </div>
-                          <div style={{ color: getStatusColor(log.behaviour) }}>
-                            B 🐶 {colours[log.behaviour]}
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            marginTop: "18px",
-                            color: "#94a3b8",
-                            fontSize: "18px",
-                          }}
-                        >
-                          ·
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>Selected Day</h2>
-              {selectedLog ? (
-                <div style={{ lineHeight: "1.8" }}>
-                  <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
-                    {selectedLog.dog || dogProfile.name || "Dog"} —{" "}
-                    {formatDate(selectedLog.date)}
-                  </div>
-                  <div>
-                    <strong>Health:</strong> ❤️ {colours[selectedLog.health]}{" "}
-                    {selectedLog.health}
-                  </div>
-                  <div>
-                    <strong>Emotion:</strong> 🧠 {colours[selectedLog.emotion]}{" "}
-                    {selectedLog.emotion}
-                  </div>
-                  <div>
-                    <strong>Behaviour:</strong> 🐶{" "}
-                    {colours[selectedLog.behaviour]} {selectedLog.behaviour}
-                  </div>
-                  <div>
-                    <strong>Appetite:</strong> {selectedLog.appetite}
-                  </div>
-                  <div>
-                    <strong>Toileting:</strong> {selectedLog.toileting}
-                  </div>
-                  <div>
-                    <strong>Medication note:</strong>{" "}
-                    {selectedLog.medication || "—"}
-                  </div>
-                  <div>
-                    <strong>Trigger:</strong> {selectedLog.trigger || "—"}
-                  </div>
-                  <div>
-                    <strong>Notes:</strong>{" "}
-                    {selectedLog.notes || "No notes recorded."}
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      flexWrap: "wrap",
-                      marginTop: "14px",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => loadLogIntoForm(selectedLog)}
-                      style={secondaryButtonStyle}
-                    >
-                      Load into Form
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteDailyLog(selectedLog.id)}
-                      style={deleteButtonStyle}
-                    >
-                      Delete Log
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ color: "#64748b" }}>
-                  No entry saved for {formatDate(selectedDate)} yet.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: "20px" }}>
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>Edit Dog Profile</h2>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Dog name</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.name}
-                  onChange={(e) => updateDogProfile("name", e.target.value)}
-                  placeholder="e.g. Yoshi"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Breed</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.breed}
-                  onChange={(e) => updateDogProfile("breed", e.target.value)}
-                  placeholder="e.g. Golden Retriever"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Sex</label>
-                <select
-                  style={inputStyle}
-                  value={dogProfile.sex}
-                  onChange={(e) => updateDogProfile("sex", e.target.value)}
-                >
-                  <option>Female</option>
-                  <option>Male</option>
-                  <option>Unknown</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Date of birth</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={dogProfile.dob}
-                  onChange={(e) => updateDogProfile("dob", e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Weight</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={dogProfile.weight}
-                  onChange={(e) => updateDogProfile("weight", e.target.value)}
-                  placeholder="e.g. 28 kg"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Desexed</label>
-                <select
-                  style={inputStyle}
-                  value={dogProfile.desexed}
-                  onChange={(e) => updateDogProfile("desexed", e.target.value)}
-                >
-                  <option>No</option>
-                  <option>Yes</option>
-                  <option>Unknown</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Notes</label>
-                <textarea
-                  style={inputStyle}
-                  rows={3}
-                  value={dogProfile.notes}
-                  onChange={(e) => updateDogProfile("notes", e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>Add / Edit Daily Log</h2>
-              <form onSubmit={saveDailyLog}>
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Date</label>
-                  <input
-                    style={inputStyle}
-                    type="date"
-                    value={dailyForm.date}
-                    onChange={(e) => updateDailyForm("date", e.target.value)}
-                  />
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Dog</label>
-                  <input
-                    style={inputStyle}
-                    type="text"
-                    value={dogProfile.name || ""}
-                    readOnly
-                  />
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Health</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.health}
-                    onChange={(e) => updateDailyForm("health", e.target.value)}
-                  >
-                    <option>Green</option>
-                    <option>Yellow</option>
-                    <option>Red</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Emotion</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.emotion}
-                    onChange={(e) => updateDailyForm("emotion", e.target.value)}
-                  >
-                    <option>Green</option>
-                    <option>Yellow</option>
-                    <option>Red</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Behaviour</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.behaviour}
-                    onChange={(e) =>
-                      updateDailyForm("behaviour", e.target.value)
-                    }
-                  >
-                    <option>Green</option>
-                    <option>Yellow</option>
-                    <option>Red</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Appetite</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.appetite}
-                    onChange={(e) =>
-                      updateDailyForm("appetite", e.target.value)
-                    }
-                  >
-                    <option>Normal</option>
-                    <option>Reduced</option>
-                    <option>Refused</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Toileting</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.toileting}
-                    onChange={(e) =>
-                      updateDailyForm("toileting", e.target.value)
-                    }
-                  >
-                    <option>Normal</option>
-                    <option>Soft stool</option>
-                    <option>Diarrhoea</option>
-                    <option>Vomiting</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Medication note</label>
-                  <input
-                    style={inputStyle}
-                    type="text"
-                    value={dailyForm.medication}
-                    onChange={(e) =>
-                      updateDailyForm("medication", e.target.value)
-                    }
-                    placeholder="e.g. Zoloft started"
-                  />
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Trigger / event</label>
-                  <select
-                    style={inputStyle}
-                    value={dailyForm.trigger}
-                    onChange={(e) => updateDailyForm("trigger", e.target.value)}
-                  >
-                    <option>None</option>
-                    <option>Medication change</option>
-                    <option>Training session</option>
-                    <option>Public outing</option>
-                    <option>Vet visit</option>
-                    <option>Travel</option>
-                    <option>New food</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <label>Notes</label>
-                  <textarea
-                    style={inputStyle}
-                    rows={4}
-                    value={dailyForm.notes}
-                    onChange={(e) => updateDailyForm("notes", e.target.value)}
-                  />
-                </div>
-
-                <button type="submit" style={buttonStyle}>
-                  Save Daily Log
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "20px",
-          }}
-        >
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Health Schedule</h2>
-            <form onSubmit={saveScheduleItem}>
-              <div style={{ marginBottom: "12px" }}>
-                <label>Item name</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={scheduleForm.itemName}
-                  onChange={(e) =>
-                    updateScheduleForm("itemName", e.target.value)
-                  }
-                  placeholder="e.g. Lepto, Cytopoint, worming"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Type</label>
-                <select
-                  style={inputStyle}
-                  value={scheduleForm.type}
-                  onChange={(e) => updateScheduleForm("type", e.target.value)}
-                >
-                  <option>Vaccine</option>
-                  <option>Injection</option>
-                  <option>Parasite prevention</option>
-                  <option>Medication</option>
-                  <option>Check-up</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Date given</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={scheduleForm.dateGiven}
-                  onChange={(e) =>
-                    updateScheduleForm("dateGiven", e.target.value)
-                  }
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Next due date</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={scheduleForm.nextDueDate}
-                  onChange={(e) =>
-                    updateScheduleForm("nextDueDate", e.target.value)
-                  }
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Repeat frequency</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={scheduleForm.repeatFrequency}
-                  onChange={(e) =>
-                    updateScheduleForm("repeatFrequency", e.target.value)
-                  }
-                  placeholder="e.g. Yearly, Monthly, Every 3 months"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Reminder</label>
-                <select
-                  style={inputStyle}
-                  value={scheduleForm.reminder}
-                  onChange={(e) =>
-                    updateScheduleForm("reminder", e.target.value)
-                  }
-                >
-                  <option>None</option>
-                  <option>On due date</option>
-                  <option>1 day before</option>
-                  <option>7 days before</option>
-                  <option>30 days before</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Notes</label>
-                <textarea
-                  style={inputStyle}
-                  rows={3}
-                  value={scheduleForm.notes}
-                  onChange={(e) => updateScheduleForm("notes", e.target.value)}
-                />
-              </div>
-
-              <button type="submit" style={buttonStyle}>
-                Add Health Item
-              </button>
-            </form>
-
-            <div style={{ marginTop: "16px" }}>
-              {healthSchedule.length > 0 ? (
-                healthSchedule.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      marginBottom: "10px",
-                      padding: "10px",
-                      background: "#f8fafc",
-                      borderRadius: "12px",
-                    }}
-                  >
-                    <div style={{ fontWeight: "bold" }}>{item.itemName}</div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      {item.type}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      Given: {item.dateGiven ? formatDate(item.dateGiven) : "—"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      Next due:{" "}
-                      {item.nextDueDate ? formatDate(item.nextDueDate) : "—"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      {item.nextDueDate ? dueSoonText(item.nextDueDate) : ""}
-                    </div>
-                    <div style={{ marginTop: "10px" }}>
-                      <button
-                        type="button"
-                        onClick={() => deleteScheduleItem(item.id)}
-                        style={deleteButtonStyle}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ color: "#64748b" }}>
-                  No health schedule items yet.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Medication History</h2>
-            <form onSubmit={saveMedication}>
-              <div style={{ marginBottom: "12px" }}>
-                <label>Medication name</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={medForm.medicationName}
-                  onChange={(e) =>
-                    updateMedForm("medicationName", e.target.value)
-                  }
-                  placeholder="e.g. Zoloft"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Dose</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={medForm.dose}
-                  onChange={(e) => updateMedForm("dose", e.target.value)}
-                  placeholder="e.g. 25 mg"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Frequency</label>
-                <select
-                  style={inputStyle}
-                  value={medForm.frequency}
-                  onChange={(e) => updateMedForm("frequency", e.target.value)}
-                >
-                  <option>Once daily</option>
-                  <option>Twice daily</option>
-                  <option>Every 8 hours</option>
-                  <option>Every 12 hours</option>
-                  <option>As needed (PRN)</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>How to take it</label>
-                <select
-                  style={inputStyle}
-                  value={medForm.foodInstruction}
-                  onChange={(e) =>
-                    updateMedForm("foodInstruction", e.target.value)
-                  }
-                >
-                  <option>With food</option>
-                  <option>Without food</option>
-                  <option>After food</option>
-                  <option>Before food</option>
-                  <option>With treat</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Start date</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={medForm.startDate}
-                  onChange={(e) => updateMedForm("startDate", e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>End date</label>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={medForm.endDate}
-                  onChange={(e) => updateMedForm("endDate", e.target.value)}
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Reason</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={medForm.reason}
-                  onChange={(e) => updateMedForm("reason", e.target.value)}
-                  placeholder="e.g. anxiety"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Prescribed by</label>
-                <input
-                  style={inputStyle}
-                  type="text"
-                  value={medForm.prescribedBy}
-                  onChange={(e) =>
-                    updateMedForm("prescribedBy", e.target.value)
-                  }
-                  placeholder="e.g. vet or behavioural vet"
-                />
-              </div>
-
-              <div style={{ marginBottom: "12px" }}>
-                <label>Notes</label>
-                <textarea
-                  style={inputStyle}
-                  rows={3}
-                  value={medForm.notes}
-                  onChange={(e) => updateMedForm("notes", e.target.value)}
-                />
-              </div>
-
-              <button type="submit" style={buttonStyle}>
-                Add Medication
-              </button>
-            </form>
-
-            <div style={{ marginTop: "16px" }}>
-              {medicationHistory.length > 0 ? (
-                medicationHistory.map((med) => (
-                  <div
-                    key={med.id}
-                    style={{
-                      marginBottom: "10px",
-                      padding: "10px",
-                      background: "#f8fafc",
-                      borderRadius: "12px",
-                    }}
-                  >
-                    <div style={{ fontWeight: "bold" }}>{med.medicationName}</div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      {med.dose || "—"} · {med.frequency || "—"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      {med.foodInstruction || "—"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      Start: {med.startDate ? formatDate(med.startDate) : "—"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      End: {med.endDate ? formatDate(med.endDate) : "Ongoing"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#475569" }}>
-                      Reason: {med.reason || "—"}
-                    </div>
-                    <div style={{ marginTop: "10px" }}>
-                      <button
-                        type="button"
-                        onClick={() => deleteMedication(med.id)}
-                        style={deleteButtonStyle}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ color: "#64748b" }}>
-                  No medication history yet.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Pattern Alerts</h2>
-            {patternAlerts.map((alert, index) => (
-              <div
-                key={index}
-                style={{
-                  marginBottom: "10px",
-                  padding: "12px",
-                  background: "#f8fafc",
-                  borderRadius: "12px",
-                }}
-              >
-                {alert}
-              </div>
-            ))}
-
-            <h3 style={{ marginTop: "20px" }}>What this version includes</h3>
-            <ul
-              style={{
-                paddingLeft: "18px",
-                color: "#475569",
-                lineHeight: "1.8",
-              }}
-            >
-              <li>Local auto-save on the device</li>
-              <li>Export backup to a JSON file</li>
-              <li>Import backup from a JSON file</li>
-              <li>Dog profile editing</li>
-              <li>Daily health, emotion, and behaviour logging</li>
-              <li>Calendar view for saved daily logs</li>
-              <li>Health schedule reminders</li>
-              <li>Medication history</li>
-              <li>Delete logs, schedule items, and medications</li>
-              <li>Print report and Save as PDF</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
