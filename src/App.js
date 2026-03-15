@@ -899,7 +899,11 @@ export default function App() {
               </div>
             </div>
 
-            <button className="icon-button" type="button" onClick={() => openView("reports")}>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => openView("reports")}
+            >
               💾
             </button>
           </header>
@@ -909,7 +913,11 @@ export default function App() {
               <>
                 <section className="hero-card">
                   <div className="hero-top">
-                    <button className="dog-photo-button" type="button" onClick={() => openView("dog")}>
+                    <button
+                      className="dog-photo-button"
+                      type="button"
+                      onClick={() => openView("dog")}
+                    >
                       <img
                         src={dogProfile.photo || DEFAULT_DOG_IMAGE}
                         alt={dogProfile.name || "Dog"}
@@ -970,7 +978,7 @@ export default function App() {
                         <div className="stat-line">
                           <span className="stat-label">Vomiting</span>
                           <span className="stat-value stat-violet">
-                            {latestLog?.toileting === "Vomiting" ? "Logged" : "None"}
+                            {latestLog?.appetite === "Vomiting" ? "Logged" : "None"}
                           </span>
                         </div>
                         <div className="stat-meta">
@@ -1231,6 +1239,7 @@ export default function App() {
                           <option>Normal</option>
                           <option>Reduced</option>
                           <option>Refused</option>
+                          <option>Vomiting</option>
                         </select>
                       </div>
 
@@ -1245,7 +1254,7 @@ export default function App() {
                           <option>Normal</option>
                           <option>Soft stool</option>
                           <option>Diarrhoea</option>
-                          <option>Vomiting</option>
+                          <option>Constipation</option>
                         </select>
                       </div>
                     </div>
