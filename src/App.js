@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./styles.css";
 
-const STORAGE_KEY = "yopaws-health-tracker-v1";
+const STORAGE_KEY = "yopaws-health-tracker-v3";
 const DEFAULT_DOG_IMAGE =
   "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80";
 
@@ -70,6 +70,7 @@ function safeRead() {
         medicationHistory: [],
       };
     }
+
     const parsed = JSON.parse(saved);
     return {
       dogProfile: { ...emptyDogProfile, ...(parsed.dogProfile || {}) },
@@ -105,6 +106,7 @@ function getAgeText(dob) {
   if (!dob) return "—";
   const birth = new Date(dob + "T00:00:00");
   const now = new Date();
+
   let years = now.getFullYear() - birth.getFullYear();
   let months = now.getMonth() - birth.getMonth();
 
@@ -143,12 +145,13 @@ function getMonthGrid(year, month) {
   const cells = [];
 
   for (let i = 0; i < startDay; i++) cells.push(null);
+
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
     cells.push(d.toISOString().slice(0, 10));
   }
-  while (cells.length % 7 !== 0) cells.push(null);
 
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 
@@ -242,7 +245,9 @@ function buildPrintableHtml(
         <div class="meta">
           <div><strong>Breed:</strong> ${dogProfile.breed || "—"}</div>
           <div><strong>Sex:</strong> ${dogProfile.sex || "—"}</div>
-          <div><strong>Date of birth:</strong> ${dogProfile.dob ? formatDate(dogProfile.dob) : "—"}</div>
+          <div><strong>Date of birth:</strong> ${
+            dogProfile.dob ? formatDate(dogProfile.dob) : "—"
+          }</div>
           <div><strong>Age:</strong> ${getAgeText(dogProfile.dob)}</div>
           <div><strong>Weight:</strong> ${dogProfile.weight || "—"}</div>
           <div><strong>Desexed:</strong> ${dogProfile.desexed || "—"}</div>
@@ -305,8 +310,9 @@ function buildPrintableHtml(
   `;
 }
 
-export default function YoPawsHealthTracker() {
+export default function App() {
   const importFileRef = useRef(null);
+  const photoFileRef = useRef(null);
   const fileHandleRef = useRef(null);
 
   const initialData = safeRead();
@@ -326,9 +332,14 @@ export default function YoPawsHealthTracker() {
   );
   const [scheduleForm, setScheduleForm] = useState(createEmptyScheduleForm());
   const [medForm, setMedForm] = useState(createEmptyMedForm());
+
   const [activeTab, setActiveTab] = useState("home");
+  const [viewStack, setViewStack] = useState(["home"]);
+
   const [saveFileSupported, setSaveFileSupported] = useState(false);
   const [hasChosenFile, setHasChosenFile] = useState(false);
+
+  const [deletePrompt, setDeletePrompt] = useState(null);
 
   useEffect(() => {
     setSaveFileSupported(
@@ -349,7 +360,10 @@ export default function YoPawsHealthTracker() {
   }, [dogProfile, dailyLogs, healthSchedule, medicationHistory]);
 
   useEffect(() => {
-    setDailyForm((prev) => ({ ...prev, dog: dogProfile.name || "" }));
+    setDailyForm((prev) => ({
+      ...prev,
+      dog: dogProfile.name || "",
+    }));
   }, [dogProfile.name]);
 
   const today = new Date();
@@ -381,48 +395,29 @@ export default function YoPawsHealthTracker() {
       .slice(0, 5);
   }, [healthSchedule]);
 
-  const quickStats = useMemo(() => {
-    const latestLog = [...dailyLogs].sort((a, b) => b.date.localeCompare(a.date))[0];
-    return [
-      {
-        label: "Vomiting",
-        value: latestLog?.toileting === "Vomiting" ? "Logged" : "None",
-        meta: latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet",
-        icon: "🤢",
-        accent: "violet",
-      },
-      {
-        label: "Stool Tracker",
-        value: latestLog?.toileting || "No data",
-        meta: latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet",
-        icon: "💩",
-        accent: "yellow",
-      },
-      {
-        label: "Medications",
-        value: activeMeds[0]?.medicationName || "None",
-        meta: activeMeds.length
-          ? `Active: ${activeMeds.length}`
-          : "No active meds",
-        icon: "💊",
-        accent: "yellow",
-      },
-      {
-        label: "Appetite",
-        value: latestLog?.appetite || "No data",
-        meta: latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet",
-        icon: "🍽️",
-        accent: "yellow",
-      },
-      {
-        label: "Behaviour",
-        value: latestLog?.behaviour || "No data",
-        meta: latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet",
-        icon: "📝",
-        accent: "cyan",
-      },
-    ];
-  }, [dailyLogs, activeMeds]);
+  const latestLog = useMemo(() => {
+    return [...dailyLogs].sort((a, b) => b.date.localeCompare(a.date))[0];
+  }, [dailyLogs]);
+
+  function openView(next) {
+    setActiveTab(next);
+    setViewStack((prev) => {
+      if (prev[prev.length - 1] === next) return prev;
+      return [...prev, next];
+    });
+  }
+
+  function goBack() {
+    setViewStack((prev) => {
+      if (prev.length <= 1) {
+        setActiveTab("home");
+        return ["home"];
+      }
+      const newStack = prev.slice(0, -1);
+      setActiveTab(newStack[newStack.length - 1]);
+      return newStack;
+    });
+  }
 
   function updateDogProfile(field, value) {
     setDogProfile((prev) => ({ ...prev, [field]: value }));
@@ -438,6 +433,26 @@ export default function YoPawsHealthTracker() {
 
   function updateMedForm(field, value) {
     setMedForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handlePhotoUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      window.alert("Image must be under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      updateDogProfile("photo", e.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function triggerPhotoUpload() {
+    photoFileRef.current?.click();
   }
 
   function saveDailyLog(e) {
@@ -505,32 +520,48 @@ export default function YoPawsHealthTracker() {
       trigger: log.trigger || "None",
       notes: log.notes || "",
     });
+    openView("logs");
   }
 
-  function deleteDailyLog(id) {
-    if (!window.confirm("Delete this daily log?")) return;
-    setDailyLogs((prev) => prev.filter((log) => log.id !== id));
+  function askDelete(type, id, label) {
+    setDeletePrompt({ type, id, label });
   }
 
-  function deleteScheduleItem(id) {
-    if (!window.confirm("Delete this health schedule item?")) return;
-    setHealthSchedule((prev) => prev.filter((item) => item.id !== id));
+  function confirmDelete() {
+    if (!deletePrompt) return;
+
+    if (deletePrompt.type === "log") {
+      setDailyLogs((prev) => prev.filter((item) => item.id !== deletePrompt.id));
+    }
+
+    if (deletePrompt.type === "schedule") {
+      setHealthSchedule((prev) =>
+        prev.filter((item) => item.id !== deletePrompt.id)
+      );
+    }
+
+    if (deletePrompt.type === "medication") {
+      setMedicationHistory((prev) =>
+        prev.filter((item) => item.id !== deletePrompt.id)
+      );
+    }
+
+    setDeletePrompt(null);
   }
 
-  function deleteMedication(id) {
-    if (!window.confirm("Delete this medication entry?")) return;
-    setMedicationHistory((prev) => prev.filter((med) => med.id !== id));
+  function cancelDelete() {
+    setDeletePrompt(null);
   }
 
   function clearAllSavedData() {
-    if (
-      !window.confirm(
-        "This will erase all saved dog data on this device. Are you sure?"
-      )
-    ) {
-      return;
-    }
+    setDeletePrompt({
+      type: "all",
+      id: "all",
+      label: "all saved data on this device",
+    });
+  }
 
+  function confirmDeleteAll() {
     localStorage.removeItem(STORAGE_KEY);
     setDogProfile(emptyDogProfile);
     setDailyLogs([]);
@@ -540,8 +571,9 @@ export default function YoPawsHealthTracker() {
     setScheduleForm(createEmptyScheduleForm());
     setMedForm(createEmptyMedForm());
     setSelectedDate(new Date().toISOString().slice(0, 10));
-    fileHandleRef.current = null;
-    setHasChosenFile(false);
+    setDeletePrompt(null);
+    setActiveTab("home");
+    setViewStack(["home"]);
   }
 
   function getBackupData() {
@@ -656,13 +688,10 @@ export default function YoPawsHealthTracker() {
           ? parsed.medicationHistory
           : [];
 
-        if (
-          !window.confirm(
-            "Import this backup and replace the current data in the app?"
-          )
-        ) {
-          return;
-        }
+        const ok = window.confirm(
+          "Import this backup and replace the current data in the app?"
+        );
+        if (!ok) return;
 
         setDogProfile(importedDogProfile);
         setDailyLogs(importedDailyLogs);
@@ -708,104 +737,126 @@ export default function YoPawsHealthTracker() {
     }
   }
 
+  const showBackButton = activeTab !== "home";
+
   if (!dogProfile.name) {
     return (
       <div className="app-shell">
-        <div className="phone-card setup-card">
-          <div className="section-header">
-            <div className="brand-icon">🐶</div>
-            <div>
-              <h1 className="title">Set Up Your Dog Profile</h1>
-              <p className="subtitle">
-                Add your dog's details to start tracking health and medications.
-              </p>
+        <input
+          ref={photoFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden-file-input"
+          onChange={handlePhotoUpload}
+        />
+
+        <div className="app-container setup-layout">
+          <div className="surface-card">
+            <div className="screen-header">
+              <div className="brand-wrap">
+                <div className="brand-icon">🐶</div>
+                <div>
+                  <h1 className="title">Set Up Your Dog Profile</h1>
+                  <p className="subtitle">
+                    Add your dog's details to start tracking health and medications.
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <form onSubmit={handleSetupSubmit} className="stack-lg">
+              <div className="profile-photo-wrap">
+                <img
+                  src={dogProfile.photo || DEFAULT_DOG_IMAGE}
+                  alt="Dog preview"
+                  className="dog-photo large"
+                />
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={triggerPhotoUpload}
+                >
+                  Upload Photo
+                </button>
+              </div>
+
+              <div className="field-grid">
+                <div className="field">
+                  <label>Dog name</label>
+                  <input
+                    value={dogProfile.name}
+                    onChange={(e) => updateDogProfile("name", e.target.value)}
+                    placeholder="e.g. Yoshi"
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Breed</label>
+                  <input
+                    value={dogProfile.breed}
+                    onChange={(e) => updateDogProfile("breed", e.target.value)}
+                    placeholder="e.g. Golden Retriever"
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Sex</label>
+                  <select
+                    value={dogProfile.sex}
+                    onChange={(e) => updateDogProfile("sex", e.target.value)}
+                  >
+                    <option>Female</option>
+                    <option>Male</option>
+                    <option>Unknown</option>
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Date of birth</label>
+                  <input
+                    type="date"
+                    value={dogProfile.dob}
+                    onChange={(e) => updateDogProfile("dob", e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Weight</label>
+                  <input
+                    value={dogProfile.weight}
+                    onChange={(e) => updateDogProfile("weight", e.target.value)}
+                    placeholder="e.g. 28 kg"
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Desexed</label>
+                  <select
+                    value={dogProfile.desexed}
+                    onChange={(e) => updateDogProfile("desexed", e.target.value)}
+                  >
+                    <option>No</option>
+                    <option>Yes</option>
+                    <option>Unknown</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Notes</label>
+                <textarea
+                  rows={4}
+                  value={dogProfile.notes}
+                  onChange={(e) => updateDogProfile("notes", e.target.value)}
+                  placeholder="Optional notes"
+                />
+              </div>
+
+              <button className="primary-button" type="submit">
+                Save Dog Profile
+              </button>
+            </form>
           </div>
-
-          <form onSubmit={handleSetupSubmit} className="stack-lg">
-            <div className="field">
-              <label>Dog name</label>
-              <input
-                value={dogProfile.name}
-                onChange={(e) => updateDogProfile("name", e.target.value)}
-                placeholder="e.g. Yoshi"
-              />
-            </div>
-
-            <div className="field">
-              <label>Breed</label>
-              <input
-                value={dogProfile.breed}
-                onChange={(e) => updateDogProfile("breed", e.target.value)}
-                placeholder="e.g. Golden Retriever"
-              />
-            </div>
-
-            <div className="field">
-              <label>Sex</label>
-              <select
-                value={dogProfile.sex}
-                onChange={(e) => updateDogProfile("sex", e.target.value)}
-              >
-                <option>Female</option>
-                <option>Male</option>
-                <option>Unknown</option>
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Date of birth</label>
-              <input
-                type="date"
-                value={dogProfile.dob}
-                onChange={(e) => updateDogProfile("dob", e.target.value)}
-              />
-            </div>
-
-            <div className="field">
-              <label>Weight</label>
-              <input
-                value={dogProfile.weight}
-                onChange={(e) => updateDogProfile("weight", e.target.value)}
-                placeholder="e.g. 28 kg"
-              />
-            </div>
-
-            <div className="field">
-              <label>Desexed</label>
-              <select
-                value={dogProfile.desexed}
-                onChange={(e) => updateDogProfile("desexed", e.target.value)}
-              >
-                <option>No</option>
-                <option>Yes</option>
-                <option>Unknown</option>
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Photo URL</label>
-              <input
-                value={dogProfile.photo}
-                onChange={(e) => updateDogProfile("photo", e.target.value)}
-                placeholder="Optional image URL"
-              />
-            </div>
-
-            <div className="field">
-              <label>Notes</label>
-              <textarea
-                rows={3}
-                value={dogProfile.notes}
-                onChange={(e) => updateDogProfile("notes", e.target.value)}
-                placeholder="Optional notes"
-              />
-            </div>
-
-            <button className="primary-button" type="submit">
-              Save Dog Profile
-            </button>
-          </form>
         </div>
       </div>
     );
@@ -820,400 +871,229 @@ export default function YoPawsHealthTracker() {
         className="hidden-file-input"
         onChange={importBackup}
       />
+      <input
+        ref={photoFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden-file-input"
+        onChange={handlePhotoUpload}
+      />
 
-      <div className="phone-card">
-        <header className="app-header">
-          <div className="header-left">
-            <div className="brand-icon">🐶</div>
-            <div>
-              <h1 className="title">YoPaws Health Tracker</h1>
-              <p className="subtitle">Local save + backup file support</p>
+      <div className="app-container">
+        <div className="surface-card app-card">
+          <header className="screen-header">
+            <div className="header-left">
+              {showBackButton ? (
+                <button className="back-button" onClick={goBack} type="button">
+                  ←
+                </button>
+              ) : (
+                <div className="brand-icon">🐶</div>
+              )}
+
+              <div>
+                <h1 className="title">YoPaws Health Tracker</h1>
+                <p className="subtitle">
+                  Auto-save, backup file, and vet-friendly reports
+                </p>
+              </div>
             </div>
-          </div>
-          <button className="icon-button" type="button" title="Backups">
-            💾
-          </button>
-        </header>
 
-        <main className="app-main">
-          {activeTab === "home" && (
-            <>
-              <section className="hero-card">
-                <div className="hero-top">
-                  <img
-                    src={dogProfile.photo || DEFAULT_DOG_IMAGE}
-                    alt={dogProfile.name || "Dog"}
-                    className="dog-photo"
-                  />
-                  <div className="hero-content">
-                    <div className="hero-name-row">
-                      <div>
-                        <h2 className="dog-name">{dogProfile.name}</h2>
-                        <p className="dog-meta">
-                          {dogProfile.breed || "Dog"} • {getAgeText(dogProfile.dob)}
-                        </p>
+            <button className="icon-button" type="button" onClick={() => openView("reports")}>
+              💾
+            </button>
+          </header>
+
+          <main className="main-content">
+            {activeTab === "home" && (
+              <>
+                <section className="hero-card">
+                  <div className="hero-top">
+                    <button className="dog-photo-button" type="button" onClick={() => openView("dog")}>
+                      <img
+                        src={dogProfile.photo || DEFAULT_DOG_IMAGE}
+                        alt={dogProfile.name || "Dog"}
+                        className="dog-photo"
+                      />
+                    </button>
+
+                    <div className="hero-content">
+                      <div className="hero-name-row">
+                        <div>
+                          <h2 className="dog-name">{dogProfile.name}</h2>
+                          <p className="dog-meta">
+                            {dogProfile.breed || "Dog"} • {getAgeText(dogProfile.dob)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="mini-action-button"
+                          onClick={() => openView("dog")}
+                        >
+                          Edit Dog
+                        </button>
                       </div>
-                    </div>
 
-                    <div className="hero-stats">
-                      <div>
-                        <p className="muted-label">Current weight</p>
-                        <p className="weight-value">{dogProfile.weight || "—"}</p>
-                        <p className="tiny-muted">
-                          Desexed: {dogProfile.desexed || "—"}
-                        </p>
-                      </div>
+                      <div className="hero-stats">
+                        <div>
+                          <p className="muted-label">Current weight</p>
+                          <p className="weight-value">{dogProfile.weight || "—"}</p>
+                          <p className="tiny-muted">
+                            Desexed: {dogProfile.desexed || "—"}
+                          </p>
+                        </div>
 
-                      <div className="mini-bars" aria-hidden="true">
-                        {[30, 45, 40, 58, 54, 70, 76].map((h, i) => (
-                          <div
-                            key={i}
-                            className="mini-bar"
-                            style={{ height: `${h}%` }}
-                          />
-                        ))}
+                        <div className="mini-bars" aria-hidden="true">
+                          {[30, 45, 40, 58, 54, 70, 76].map((h, i) => (
+                            <div
+                              key={i}
+                              className="mini-bar"
+                              style={{ height: `${h}%` }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
 
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>🩺</span>
-                  <h3>Health Logs</h3>
-                </div>
+                <section className="panel-card">
+                  <div className="panel-heading">
+                    <span>🩺</span>
+                    <h3>Today</h3>
+                  </div>
 
-                <div className="list-stack">
-                  {quickStats.map((item) => (
-                    <div key={item.label} className="stat-row">
-                      <div className="stat-icon">{item.icon}</div>
+                  <div className="list-stack">
+                    <div className="stat-row">
+                      <div className="stat-icon">🤢</div>
                       <div className="stat-content">
                         <div className="stat-line">
-                          <span className="stat-label">{item.label}</span>
-                          <span className={`stat-value stat-${item.accent}`}>
-                            {item.value}
+                          <span className="stat-label">Vomiting</span>
+                          <span className="stat-value stat-violet">
+                            {latestLog?.toileting === "Vomiting" ? "Logged" : "None"}
                           </span>
                         </div>
-                        <div className="stat-meta">{item.meta}</div>
-                      </div>
-                      <div className="chevron">›</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>⚡</span>
-                  <h3>Quick Actions</h3>
-                </div>
-
-                <div className="quick-grid">
-                  <button
-                    type="button"
-                    className="quick-button quick-violet"
-                    onClick={() => setActiveTab("logs")}
-                  >
-                    <span>➕</span>
-                    <span>Add Symptom</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="quick-button quick-yellow"
-                    onClick={() => setActiveTab("meds")}
-                  >
-                    <span>💊</span>
-                    <span>Add Medication</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="quick-button quick-cyan"
-                    onClick={() => setActiveTab("reports")}
-                  >
-                    <span>📤</span>
-                    <span>Backups</span>
-                  </button>
-                </div>
-              </section>
-
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>📅</span>
-                  <h3>Upcoming Reminders</h3>
-                </div>
-
-                {upcomingItems.length > 0 ? (
-                  <div className="list-stack">
-                    {upcomingItems.map((item) => (
-                      <div key={item.id} className="reminder-card">
-                        <div className="reminder-title">{item.itemName}</div>
-                        <div className="reminder-meta">
-                          {item.type} • {dueSoonText(item.nextDueDate)}
+                        <div className="stat-meta">
+                          {latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet"}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="empty-text">No reminder items yet.</p>
-                )}
-              </section>
-            </>
-          )}
-
-          {activeTab === "logs" && (
-            <>
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>📝</span>
-                  <h3>Add / Edit Daily Log</h3>
-                </div>
-
-                <form onSubmit={saveDailyLog} className="stack-lg">
-                  <div className="field">
-                    <label>Date</label>
-                    <input
-                      type="date"
-                      value={dailyForm.date}
-                      onChange={(e) => updateDailyForm("date", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label>Health</label>
-                    <select
-                      value={dailyForm.health}
-                      onChange={(e) => updateDailyForm("health", e.target.value)}
-                    >
-                      <option>Green</option>
-                      <option>Yellow</option>
-                      <option>Red</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Emotion</label>
-                    <select
-                      value={dailyForm.emotion}
-                      onChange={(e) => updateDailyForm("emotion", e.target.value)}
-                    >
-                      <option>Green</option>
-                      <option>Yellow</option>
-                      <option>Red</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Behaviour</label>
-                    <select
-                      value={dailyForm.behaviour}
-                      onChange={(e) =>
-                        updateDailyForm("behaviour", e.target.value)
-                      }
-                    >
-                      <option>Green</option>
-                      <option>Yellow</option>
-                      <option>Red</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Appetite</label>
-                    <select
-                      value={dailyForm.appetite}
-                      onChange={(e) =>
-                        updateDailyForm("appetite", e.target.value)
-                      }
-                    >
-                      <option>Normal</option>
-                      <option>Reduced</option>
-                      <option>Refused</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Toileting</label>
-                    <select
-                      value={dailyForm.toileting}
-                      onChange={(e) =>
-                        updateDailyForm("toileting", e.target.value)
-                      }
-                    >
-                      <option>Normal</option>
-                      <option>Soft stool</option>
-                      <option>Diarrhoea</option>
-                      <option>Vomiting</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Medication note</label>
-                    <input
-                      value={dailyForm.medication}
-                      onChange={(e) =>
-                        updateDailyForm("medication", e.target.value)
-                      }
-                      placeholder="e.g. Zoloft started"
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label>Trigger / event</label>
-                    <select
-                      value={dailyForm.trigger}
-                      onChange={(e) => updateDailyForm("trigger", e.target.value)}
-                    >
-                      <option>None</option>
-                      <option>Medication change</option>
-                      <option>Training session</option>
-                      <option>Public outing</option>
-                      <option>Vet visit</option>
-                      <option>Travel</option>
-                      <option>New food</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label>Notes</label>
-                    <textarea
-                      rows={4}
-                      value={dailyForm.notes}
-                      onChange={(e) => updateDailyForm("notes", e.target.value)}
-                    />
-                  </div>
-
-                  <button type="submit" className="primary-button">
-                    Save Daily Log
-                  </button>
-                </form>
-              </section>
-
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>📆</span>
-                  <h3>Calendar</h3>
-                </div>
-
-                <div className="calendar-grid-header">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div key={day} className="calendar-day-name">
-                      {day}
                     </div>
-                  ))}
-                </div>
 
-                <div className="calendar-grid">
-                  {monthGrid.map((date, index) => {
-                    if (!date) return <div key={index} className="calendar-empty" />;
-
-                    const log = logsByDate.get(date);
-                    const isSelected = selectedDate === date;
-
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        className={`calendar-cell ${isSelected ? "calendar-selected" : ""}`}
-                        onClick={() => {
-                          setSelectedDate(date);
-                          if (log) {
-                            loadLogIntoForm(log);
-                          } else {
-                            setDailyForm({
-                              ...createEmptyDailyForm(dogProfile.name || ""),
-                              date,
-                            });
-                          }
-                        }}
-                      >
-                        <div className="calendar-date">
-                          {new Date(date + "T00:00:00").getDate()}
+                    <div className="stat-row">
+                      <div className="stat-icon">💊</div>
+                      <div className="stat-content">
+                        <div className="stat-line">
+                          <span className="stat-label">Active Medications</span>
+                          <span className="stat-value stat-yellow">
+                            {activeMeds[0]?.medicationName || "None"}
+                          </span>
                         </div>
-                        {log ? (
-                          <div className="calendar-dots">
-                            <span className={`tiny-chip ${getStatusClass(log.health)}`}>
-                              H
-                            </span>
-                            <span className={`tiny-chip ${getStatusClass(log.emotion)}`}>
-                              E
-                            </span>
-                            <span className={`tiny-chip ${getStatusClass(log.behaviour)}`}>
-                              B
-                            </span>
+                        <div className="stat-meta">
+                          {activeMeds.length ? `Active: ${activeMeds.length}` : "No active meds"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="stat-row">
+                      <div className="stat-icon">🍽️</div>
+                      <div className="stat-content">
+                        <div className="stat-line">
+                          <span className="stat-label">Appetite</span>
+                          <span className="stat-value stat-yellow">
+                            {latestLog?.appetite || "No data"}
+                          </span>
+                        </div>
+                        <div className="stat-meta">
+                          {latestLog ? `Last: ${formatDate(latestLog.date)}` : "No logs yet"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="panel-card">
+                  <div className="panel-heading">
+                    <span>⚡</span>
+                    <h3>Quick Actions</h3>
+                  </div>
+
+                  <div className="quick-grid">
+                    <button
+                      type="button"
+                      className="quick-button quick-violet"
+                      onClick={() => openView("logs")}
+                    >
+                      <span>➕</span>
+                      <span>Add Symptom</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="quick-button quick-yellow"
+                      onClick={() => openView("meds")}
+                    >
+                      <span>💊</span>
+                      <span>Add Medication</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="quick-button quick-cyan"
+                      onClick={() => openView("schedule")}
+                    >
+                      <span>📅</span>
+                      <span>Add Reminder</span>
+                    </button>
+                  </div>
+                </section>
+
+                <section className="panel-card">
+                  <div className="panel-heading">
+                    <span>📅</span>
+                    <h3>Upcoming Reminders</h3>
+                  </div>
+
+                  {upcomingItems.length > 0 ? (
+                    <div className="list-stack">
+                      {upcomingItems.map((item) => (
+                        <div key={item.id} className="reminder-card">
+                          <div className="reminder-title">{item.itemName}</div>
+                          <div className="reminder-meta">
+                            {item.type} • {dueSoonText(item.nextDueDate)}
                           </div>
-                        ) : (
-                          <div className="calendar-placeholder">·</div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="selected-log-box">
-                  <h4>Selected Day</h4>
-                  {selectedLog ? (
-                    <div className="stack-sm">
-                      <div className="log-line">
-                        <strong>{formatDate(selectedLog.date)}</strong>
-                      </div>
-                      <div className="chips-row">
-                        <span className={`status-chip ${getStatusClass(selectedLog.health)}`}>
-                          Health: {selectedLog.health}
-                        </span>
-                        <span className={`status-chip ${getStatusClass(selectedLog.emotion)}`}>
-                          Emotion: {selectedLog.emotion}
-                        </span>
-                        <span className={`status-chip ${getStatusClass(selectedLog.behaviour)}`}>
-                          Behaviour: {selectedLog.behaviour}
-                        </span>
-                      </div>
-                      <div className="muted-detail">
-                        Appetite: {selectedLog.appetite} • Toileting:{" "}
-                        {selectedLog.toileting}
-                      </div>
-                      <div className="muted-detail">
-                        Trigger: {selectedLog.trigger || "—"}
-                      </div>
-                      <div className="muted-detail">
-                        Notes: {selectedLog.notes || "No notes"}
-                      </div>
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => loadLogIntoForm(selectedLog)}
-                        >
-                          Load into Form
-                        </button>
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => deleteDailyLog(selectedLog.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <p className="empty-text">
-                      No entry saved for {formatDate(selectedDate)} yet.
-                    </p>
+                    <p className="empty-text">No reminder items yet.</p>
                   )}
-                </div>
-              </section>
-            </>
-          )}
+                </section>
+              </>
+            )}
 
-          {activeTab === "add" && (
-            <>
+            {activeTab === "dog" && (
               <section className="panel-card">
                 <div className="panel-heading">
                   <span>🐕</span>
-                  <h3>Edit Dog Profile</h3>
+                  <h3>Dog Profile</h3>
                 </div>
 
-                <div className="stack-lg">
+                <div className="profile-photo-wrap">
+                  <img
+                    src={dogProfile.photo || DEFAULT_DOG_IMAGE}
+                    alt={dogProfile.name || "Dog"}
+                    className="dog-photo large"
+                  />
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={triggerPhotoUpload}
+                  >
+                    Upload Photo
+                  </button>
+                </div>
+
+                <div className="field-grid">
                   <div className="field">
                     <label>Dog name</label>
                     <input
@@ -1221,6 +1101,7 @@ export default function YoPawsHealthTracker() {
                       onChange={(e) => updateDogProfile("name", e.target.value)}
                     />
                   </div>
+
                   <div className="field">
                     <label>Breed</label>
                     <input
@@ -1228,6 +1109,7 @@ export default function YoPawsHealthTracker() {
                       onChange={(e) => updateDogProfile("breed", e.target.value)}
                     />
                   </div>
+
                   <div className="field">
                     <label>Sex</label>
                     <select
@@ -1239,6 +1121,7 @@ export default function YoPawsHealthTracker() {
                       <option>Unknown</option>
                     </select>
                   </div>
+
                   <div className="field">
                     <label>Date of birth</label>
                     <input
@@ -1247,6 +1130,7 @@ export default function YoPawsHealthTracker() {
                       onChange={(e) => updateDogProfile("dob", e.target.value)}
                     />
                   </div>
+
                   <div className="field">
                     <label>Weight</label>
                     <input
@@ -1254,156 +1138,280 @@ export default function YoPawsHealthTracker() {
                       onChange={(e) => updateDogProfile("weight", e.target.value)}
                     />
                   </div>
+
                   <div className="field">
                     <label>Desexed</label>
                     <select
                       value={dogProfile.desexed}
-                      onChange={(e) =>
-                        updateDogProfile("desexed", e.target.value)
-                      }
+                      onChange={(e) => updateDogProfile("desexed", e.target.value)}
                     >
                       <option>No</option>
                       <option>Yes</option>
                       <option>Unknown</option>
                     </select>
                   </div>
-                  <div className="field">
-                    <label>Photo URL</label>
-                    <input
-                      value={dogProfile.photo}
-                      onChange={(e) => updateDogProfile("photo", e.target.value)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Notes</label>
-                    <textarea
-                      rows={3}
-                      value={dogProfile.notes}
-                      onChange={(e) => updateDogProfile("notes", e.target.value)}
-                    />
-                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea
+                    rows={4}
+                    value={dogProfile.notes}
+                    onChange={(e) => updateDogProfile("notes", e.target.value)}
+                  />
                 </div>
               </section>
+            )}
 
-              <section className="panel-card">
-                <div className="panel-heading">
-                  <span>📅</span>
-                  <h3>Health Schedule</h3>
-                </div>
-
-                <form onSubmit={saveScheduleItem} className="stack-lg">
-                  <div className="field">
-                    <label>Item name</label>
-                    <input
-                      value={scheduleForm.itemName}
-                      onChange={(e) =>
-                        updateScheduleForm("itemName", e.target.value)
-                      }
-                      placeholder="e.g. Lepto, Cytopoint, worming"
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Type</label>
-                    <select
-                      value={scheduleForm.type}
-                      onChange={(e) => updateScheduleForm("type", e.target.value)}
-                    >
-                      <option>Vaccine</option>
-                      <option>Injection</option>
-                      <option>Parasite prevention</option>
-                      <option>Medication</option>
-                      <option>Check-up</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Date given</label>
-                    <input
-                      type="date"
-                      value={scheduleForm.dateGiven}
-                      onChange={(e) =>
-                        updateScheduleForm("dateGiven", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Next due date</label>
-                    <input
-                      type="date"
-                      value={scheduleForm.nextDueDate}
-                      onChange={(e) =>
-                        updateScheduleForm("nextDueDate", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Repeat frequency</label>
-                    <input
-                      value={scheduleForm.repeatFrequency}
-                      onChange={(e) =>
-                        updateScheduleForm("repeatFrequency", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Reminder</label>
-                    <select
-                      value={scheduleForm.reminder}
-                      onChange={(e) =>
-                        updateScheduleForm("reminder", e.target.value)
-                      }
-                    >
-                      <option>None</option>
-                      <option>On due date</option>
-                      <option>1 day before</option>
-                      <option>7 days before</option>
-                      <option>30 days before</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Notes</label>
-                    <textarea
-                      rows={3}
-                      value={scheduleForm.notes}
-                      onChange={(e) => updateScheduleForm("notes", e.target.value)}
-                    />
+            {activeTab === "logs" && (
+              <>
+                <section className="panel-card">
+                  <div className="panel-heading">
+                    <span>📝</span>
+                    <h3>Add / Edit Daily Log</h3>
                   </div>
 
-                  <button type="submit" className="primary-button">
-                    Add Health Item
-                  </button>
-                </form>
+                  <form onSubmit={saveDailyLog} className="stack-lg">
+                    <div className="field-grid">
+                      <div className="field">
+                        <label>Date</label>
+                        <input
+                          type="date"
+                          value={dailyForm.date}
+                          onChange={(e) => updateDailyForm("date", e.target.value)}
+                        />
+                      </div>
 
-                <div className="list-stack top-gap">
-                  {healthSchedule.length > 0 ? (
-                    healthSchedule.map((item) => (
-                      <div key={item.id} className="reminder-card">
-                        <div className="reminder-title">{item.itemName}</div>
-                        <div className="reminder-meta">
-                          {item.type} •{" "}
-                          {item.nextDueDate ? dueSoonText(item.nextDueDate) : "No due date"}
+                      <div className="field">
+                        <label>Health</label>
+                        <select
+                          value={dailyForm.health}
+                          onChange={(e) => updateDailyForm("health", e.target.value)}
+                        >
+                          <option>Green</option>
+                          <option>Yellow</option>
+                          <option>Red</option>
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Emotion</label>
+                        <select
+                          value={dailyForm.emotion}
+                          onChange={(e) => updateDailyForm("emotion", e.target.value)}
+                        >
+                          <option>Green</option>
+                          <option>Yellow</option>
+                          <option>Red</option>
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Behaviour</label>
+                        <select
+                          value={dailyForm.behaviour}
+                          onChange={(e) =>
+                            updateDailyForm("behaviour", e.target.value)
+                          }
+                        >
+                          <option>Green</option>
+                          <option>Yellow</option>
+                          <option>Red</option>
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Appetite</label>
+                        <select
+                          value={dailyForm.appetite}
+                          onChange={(e) =>
+                            updateDailyForm("appetite", e.target.value)
+                          }
+                        >
+                          <option>Normal</option>
+                          <option>Reduced</option>
+                          <option>Refused</option>
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Toileting</label>
+                        <select
+                          value={dailyForm.toileting}
+                          onChange={(e) =>
+                            updateDailyForm("toileting", e.target.value)
+                          }
+                        >
+                          <option>Normal</option>
+                          <option>Soft stool</option>
+                          <option>Diarrhoea</option>
+                          <option>Vomiting</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="field">
+                      <label>Medication note</label>
+                      <input
+                        value={dailyForm.medication}
+                        onChange={(e) =>
+                          updateDailyForm("medication", e.target.value)
+                        }
+                        placeholder="e.g. Zoloft started"
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Trigger / event</label>
+                      <select
+                        value={dailyForm.trigger}
+                        onChange={(e) => updateDailyForm("trigger", e.target.value)}
+                      >
+                        <option>None</option>
+                        <option>Medication change</option>
+                        <option>Training session</option>
+                        <option>Public outing</option>
+                        <option>Vet visit</option>
+                        <option>Travel</option>
+                        <option>New food</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+
+                    <div className="field">
+                      <label>Notes</label>
+                      <textarea
+                        rows={4}
+                        value={dailyForm.notes}
+                        onChange={(e) => updateDailyForm("notes", e.target.value)}
+                      />
+                    </div>
+
+                    <button type="submit" className="primary-button">
+                      Save Daily Log
+                    </button>
+                  </form>
+                </section>
+
+                <section className="panel-card">
+                  <div className="panel-heading">
+                    <span>📆</span>
+                    <h3>Calendar</h3>
+                  </div>
+
+                  <div className="calendar-grid-header">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                      <div key={day} className="calendar-day-name">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="calendar-grid">
+                    {monthGrid.map((date, index) => {
+                      if (!date) return <div key={index} className="calendar-empty" />;
+
+                      const log = logsByDate.get(date);
+                      const isSelected = selectedDate === date;
+
+                      return (
+                        <button
+                          key={date}
+                          type="button"
+                          className={`calendar-cell ${isSelected ? "calendar-selected" : ""}`}
+                          onClick={() => {
+                            setSelectedDate(date);
+                            if (log) {
+                              loadLogIntoForm(log);
+                            } else {
+                              setDailyForm({
+                                ...createEmptyDailyForm(dogProfile.name || ""),
+                                date,
+                              });
+                            }
+                          }}
+                        >
+                          <div className="calendar-date">
+                            {new Date(date + "T00:00:00").getDate()}
+                          </div>
+                          {log ? (
+                            <div className="calendar-dots">
+                              <span className={`tiny-chip ${getStatusClass(log.health)}`}>
+                                H
+                              </span>
+                              <span className={`tiny-chip ${getStatusClass(log.emotion)}`}>
+                                E
+                              </span>
+                              <span className={`tiny-chip ${getStatusClass(log.behaviour)}`}>
+                                B
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="calendar-placeholder">·</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="selected-log-box">
+                    <h4>Selected Day</h4>
+                    {selectedLog ? (
+                      <div className="stack-sm">
+                        <div className="log-line">
+                          <strong>{formatDate(selectedLog.date)}</strong>
                         </div>
-                        <div className="button-row top-gap-sm">
+                        <div className="chips-row">
+                          <span className={`status-chip ${getStatusClass(selectedLog.health)}`}>
+                            Health: {selectedLog.health}
+                          </span>
+                          <span className={`status-chip ${getStatusClass(selectedLog.emotion)}`}>
+                            Emotion: {selectedLog.emotion}
+                          </span>
+                          <span className={`status-chip ${getStatusClass(selectedLog.behaviour)}`}>
+                            Behaviour: {selectedLog.behaviour}
+                          </span>
+                        </div>
+                        <div className="muted-detail">
+                          Appetite: {selectedLog.appetite} • Toileting:{" "}
+                          {selectedLog.toileting}
+                        </div>
+                        <div className="muted-detail">
+                          Trigger: {selectedLog.trigger || "—"}
+                        </div>
+                        <div className="muted-detail">
+                          Notes: {selectedLog.notes || "No notes"}
+                        </div>
+                        <div className="button-row">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() => loadLogIntoForm(selectedLog)}
+                          >
+                            Load into Form
+                          </button>
                           <button
                             type="button"
                             className="danger-button"
-                            onClick={() => deleteScheduleItem(item.id)}
+                            onClick={() =>
+                              askDelete("log", selectedLog.id, "this daily log")
+                            }
                           >
                             Delete
                           </button>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="empty-text">No health schedule items yet.</p>
-                  )}
-                </div>
-              </section>
-            </>
-          )}
+                    ) : (
+                      <p className="empty-text">
+                        No entry saved for {formatDate(selectedDate)} yet.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
 
-          {activeTab === "reports" && (
-            <>
+            {activeTab === "meds" && (
               <section className="panel-card">
                 <div className="panel-heading">
                   <span>💊</span>
@@ -1411,70 +1419,73 @@ export default function YoPawsHealthTracker() {
                 </div>
 
                 <form onSubmit={saveMedication} className="stack-lg">
-                  <div className="field">
-                    <label>Medication name</label>
-                    <input
-                      value={medForm.medicationName}
-                      onChange={(e) =>
-                        updateMedForm("medicationName", e.target.value)
-                      }
-                    />
+                  <div className="field-grid">
+                    <div className="field">
+                      <label>Medication name</label>
+                      <input
+                        value={medForm.medicationName}
+                        onChange={(e) =>
+                          updateMedForm("medicationName", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Dose</label>
+                      <input
+                        value={medForm.dose}
+                        onChange={(e) => updateMedForm("dose", e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Frequency</label>
+                      <select
+                        value={medForm.frequency}
+                        onChange={(e) => updateMedForm("frequency", e.target.value)}
+                      >
+                        <option>Once daily</option>
+                        <option>Twice daily</option>
+                        <option>Every 8 hours</option>
+                        <option>Every 12 hours</option>
+                        <option>As needed (PRN)</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>How to take it</label>
+                      <select
+                        value={medForm.foodInstruction}
+                        onChange={(e) =>
+                          updateMedForm("foodInstruction", e.target.value)
+                        }
+                      >
+                        <option>With food</option>
+                        <option>Without food</option>
+                        <option>After food</option>
+                        <option>Before food</option>
+                        <option>With treat</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Start date</label>
+                      <input
+                        type="date"
+                        value={medForm.startDate}
+                        onChange={(e) =>
+                          updateMedForm("startDate", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>End date</label>
+                      <input
+                        type="date"
+                        value={medForm.endDate}
+                        onChange={(e) => updateMedForm("endDate", e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="field">
-                    <label>Dose</label>
-                    <input
-                      value={medForm.dose}
-                      onChange={(e) => updateMedForm("dose", e.target.value)}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Frequency</label>
-                    <select
-                      value={medForm.frequency}
-                      onChange={(e) => updateMedForm("frequency", e.target.value)}
-                    >
-                      <option>Once daily</option>
-                      <option>Twice daily</option>
-                      <option>Every 8 hours</option>
-                      <option>Every 12 hours</option>
-                      <option>As needed (PRN)</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>How to take it</label>
-                    <select
-                      value={medForm.foodInstruction}
-                      onChange={(e) =>
-                        updateMedForm("foodInstruction", e.target.value)
-                      }
-                    >
-                      <option>With food</option>
-                      <option>Without food</option>
-                      <option>After food</option>
-                      <option>Before food</option>
-                      <option>With treat</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Start date</label>
-                    <input
-                      type="date"
-                      value={medForm.startDate}
-                      onChange={(e) =>
-                        updateMedForm("startDate", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>End date</label>
-                    <input
-                      type="date"
-                      value={medForm.endDate}
-                      onChange={(e) => updateMedForm("endDate", e.target.value)}
-                    />
-                  </div>
+
                   <div className="field">
                     <label>Reason</label>
                     <input
@@ -1482,6 +1493,7 @@ export default function YoPawsHealthTracker() {
                       onChange={(e) => updateMedForm("reason", e.target.value)}
                     />
                   </div>
+
                   <div className="field">
                     <label>Prescribed by</label>
                     <input
@@ -1491,6 +1503,7 @@ export default function YoPawsHealthTracker() {
                       }
                     />
                   </div>
+
                   <div className="field">
                     <label>Notes</label>
                     <textarea
@@ -1518,7 +1531,9 @@ export default function YoPawsHealthTracker() {
                           <button
                             type="button"
                             className="danger-button"
-                            onClick={() => deleteMedication(med.id)}
+                            onClick={() =>
+                              askDelete("medication", med.id, med.medicationName)
+                            }
                           >
                             Delete
                           </button>
@@ -1530,7 +1545,136 @@ export default function YoPawsHealthTracker() {
                   )}
                 </div>
               </section>
+            )}
 
+            {activeTab === "schedule" && (
+              <section className="panel-card">
+                <div className="panel-heading">
+                  <span>📅</span>
+                  <h3>Health Schedule</h3>
+                </div>
+
+                <form onSubmit={saveScheduleItem} className="stack-lg">
+                  <div className="field-grid">
+                    <div className="field">
+                      <label>Item name</label>
+                      <input
+                        value={scheduleForm.itemName}
+                        onChange={(e) =>
+                          updateScheduleForm("itemName", e.target.value)
+                        }
+                        placeholder="e.g. Cytopoint"
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Type</label>
+                      <select
+                        value={scheduleForm.type}
+                        onChange={(e) => updateScheduleForm("type", e.target.value)}
+                      >
+                        <option>Vaccine</option>
+                        <option>Injection</option>
+                        <option>Parasite prevention</option>
+                        <option>Medication</option>
+                        <option>Check-up</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+
+                    <div className="field">
+                      <label>Date given</label>
+                      <input
+                        type="date"
+                        value={scheduleForm.dateGiven}
+                        onChange={(e) =>
+                          updateScheduleForm("dateGiven", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Next due date</label>
+                      <input
+                        type="date"
+                        value={scheduleForm.nextDueDate}
+                        onChange={(e) =>
+                          updateScheduleForm("nextDueDate", e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label>Repeat frequency</label>
+                    <input
+                      value={scheduleForm.repeatFrequency}
+                      onChange={(e) =>
+                        updateScheduleForm("repeatFrequency", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label>Reminder</label>
+                    <select
+                      value={scheduleForm.reminder}
+                      onChange={(e) =>
+                        updateScheduleForm("reminder", e.target.value)
+                      }
+                    >
+                      <option>None</option>
+                      <option>On due date</option>
+                      <option>1 day before</option>
+                      <option>7 days before</option>
+                      <option>30 days before</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label>Notes</label>
+                    <textarea
+                      rows={3}
+                      value={scheduleForm.notes}
+                      onChange={(e) => updateScheduleForm("notes", e.target.value)}
+                    />
+                  </div>
+
+                  <button type="submit" className="primary-button">
+                    Add Health Item
+                  </button>
+                </form>
+
+                <div className="list-stack top-gap">
+                  {healthSchedule.length > 0 ? (
+                    healthSchedule.map((item) => (
+                      <div key={item.id} className="reminder-card">
+                        <div className="reminder-title">{item.itemName}</div>
+                        <div className="reminder-meta">
+                          {item.type} •{" "}
+                          {item.nextDueDate ? dueSoonText(item.nextDueDate) : "No due date"}
+                        </div>
+                        <div className="button-row top-gap-sm">
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() =>
+                              askDelete("schedule", item.id, item.itemName)
+                            }
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="empty-text">No health schedule items yet.</p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {activeTab === "reports" && (
               <section className="panel-card">
                 <div className="panel-heading">
                   <span>📤</span>
@@ -1539,8 +1683,9 @@ export default function YoPawsHealthTracker() {
 
                 <div className="stack-md">
                   <p className="subtitle-block">
-                    Save a backup file to your device, import a previous backup,
-                    or print a PDF report for your vet.
+                    Export a backup file, import a previous backup, save directly
+                    to a chosen local file where supported, or print a report for
+                    your vet.
                   </p>
 
                   <button className="primary-button" onClick={handlePrintReport} type="button">
@@ -1551,9 +1696,11 @@ export default function YoPawsHealthTracker() {
                     <button className="secondary-button" type="button" onClick={exportBackup}>
                       Export Backup
                     </button>
+
                     <button className="secondary-button" type="button" onClick={handleImportClick}>
                       Import Backup
                     </button>
+
                     {saveFileSupported && (
                       <>
                         <button
@@ -1563,6 +1710,7 @@ export default function YoPawsHealthTracker() {
                         >
                           {hasChosenFile ? "Choose Different Backup File" : "Choose Backup File"}
                         </button>
+
                         <button
                           className="secondary-button"
                           type="button"
@@ -1572,8 +1720,13 @@ export default function YoPawsHealthTracker() {
                         </button>
                       </>
                     )}
-                    <button className="danger-button" type="button" onClick={clearAllSavedData}>
-                      Clear Saved Data
+
+                    <button
+                      className="danger-button"
+                      type="button"
+                      onClick={clearAllSavedData}
+                    >
+                      Delete All Saved Data
                     </button>
                   </div>
 
@@ -1585,29 +1738,58 @@ export default function YoPawsHealthTracker() {
                   )}
                 </div>
               </section>
-            </>
-          )}
-        </main>
+            )}
+          </main>
 
-        <nav className="bottom-nav">
-          {[
-            { key: "home", label: "Home", icon: "🏠" },
-            { key: "logs", label: "Logs", icon: "📋" },
-            { key: "add", label: "Add", icon: "➕" },
-            { key: "reports", label: "Reports", icon: "📊" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`nav-button ${activeTab === item.key ? "nav-active" : ""}`}
-              onClick={() => setActiveTab(item.key)}
-            >
-              <div className="nav-icon">{item.icon}</div>
-              <div>{item.label}</div>
-            </button>
-          ))}
-        </nav>
+          <nav className="bottom-nav">
+            {[
+              { key: "home", label: "Home", icon: "🏠" },
+              { key: "logs", label: "Logs", icon: "📋" },
+              { key: "dog", label: "Dog", icon: "🐕" },
+              { key: "reports", label: "Reports", icon: "📊" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`nav-button ${activeTab === item.key ? "nav-active" : ""}`}
+                onClick={() => openView(item.key)}
+              >
+                <div className="nav-icon">{item.icon}</div>
+                <div>{item.label}</div>
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
+
+      {deletePrompt && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Confirm Delete</h3>
+            <p>
+              {deletePrompt.type === "all"
+                ? "This will remove all saved data on this device."
+                : `Are you sure you want to delete ${deletePrompt.label}?`}
+            </p>
+
+            <div className="modal-actions">
+              <button className="secondary-button" type="button" onClick={cancelDelete}>
+                Cancel
+              </button>
+
+              <button
+                className="danger-button"
+                type="button"
+                onClick={
+                  deletePrompt.type === "all" ? confirmDeleteAll : confirmDelete
+                }
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
