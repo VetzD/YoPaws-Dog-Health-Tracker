@@ -5,8 +5,17 @@ const STORAGE_KEY = "yopaws-health-tracker-v4";
 const DEFAULT_DOG_IMAGE =
   "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80";
 
+function getTodayLocalISO() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const emptyDogProfile = {
   name: "",
+  type: "Dog",
   breed: "",
   sex: "Unknown",
   dob: "",
@@ -17,7 +26,7 @@ const emptyDogProfile = {
 };
 
 function createEmptyDailyForm(dogName = "") {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayLocalISO();
   return {
     id: null,
     date: today,
@@ -94,17 +103,17 @@ function safeRead() {
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(`${dateStr}T00:00:00`);
   return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
   });
 }
 
 function getAgeText(dob) {
   if (!dob) return "—";
-  const birth = new Date(dob + "T00:00:00");
+  const birth = new Date(`${dob}T00:00:00`);
   const now = new Date();
 
   let years = now.getFullYear() - birth.getFullYear();
@@ -125,7 +134,7 @@ function getAgeText(dob) {
 
 function dueSoonText(date) {
   if (!date) return "";
-  const due = new Date(date + "T00:00:00");
+  const due = new Date(`${date}T00:00:00`);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.round((due - today) / (24 * 60 * 60 * 1000));
@@ -147,8 +156,10 @@ function getMonthGrid(year, month) {
   for (let i = 0; i < startDay; i++) cells.push(null);
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day);
-    cells.push(d.toISOString().slice(0, 10));
+    const localDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      day
+    ).padStart(2, "0")}`;
+    cells.push(localDate);
   }
 
   while (cells.length % 7 !== 0) cells.push(null);
@@ -231,7 +242,7 @@ function buildPrintableHtml(
   return `
     <html>
       <head>
-        <title>${dogProfile.name || "Dog"} Health Report</title>
+        <title>${dogProfile.name || "Pet"} Health Report</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
           h1, h2 { margin-bottom: 8px; }
@@ -242,8 +253,9 @@ function buildPrintableHtml(
         </style>
       </head>
       <body>
-        <h1>${dogProfile.name || "Dog"} Health Report</h1>
+        <h1>${dogProfile.name || "Pet"} Health Report</h1>
         <div class="meta">
+          <div><strong>Pet type:</strong> ${dogProfile.type || "—"}</div>
           <div><strong>Breed:</strong> ${dogProfile.breed || "—"}</div>
           <div><strong>Sex:</strong> ${dogProfile.sex || "—"}</div>
           <div><strong>Date of birth:</strong> ${
@@ -325,9 +337,7 @@ export default function App() {
     initialData.medicationHistory
   );
 
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [selectedDate, setSelectedDate] = useState(getTodayLocalISO());
   const [dailyForm, setDailyForm] = useState(
     createEmptyDailyForm(initialData.dogProfile.name || "")
   );
@@ -341,6 +351,11 @@ export default function App() {
   const [hasChosenFile, setHasChosenFile] = useState(false);
 
   const [deletePrompt, setDeletePrompt] = useState(null);
+
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   useEffect(() => {
     setSaveFileSupported(
@@ -367,9 +382,8 @@ export default function App() {
     }));
   }, [dogProfile.name]);
 
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+  const currentYear = calendarDate.getFullYear();
+  const currentMonth = calendarDate.getMonth();
 
   const monthGrid = useMemo(
     () => getMonthGrid(currentYear, currentMonth),
@@ -420,6 +434,12 @@ export default function App() {
     });
   }
 
+  function changeCalendarMonth(direction) {
+    setCalendarDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + direction, 1)
+    );
+  }
+
   function updateDogProfile(field, value) {
     setDogProfile((prev) => ({ ...prev, [field]: value }));
   }
@@ -464,7 +484,7 @@ export default function App() {
     const newLog = {
       ...dailyForm,
       id: existingIndex >= 0 ? dailyLogs[existingIndex].id : Date.now(),
-      dog: dogProfile.name || "Dog",
+      dog: dogProfile.name || "Pet",
     };
 
     if (existingIndex >= 0) {
@@ -510,7 +530,7 @@ export default function App() {
   function loadLogIntoForm(log) {
     setDailyForm({
       id: log.id || null,
-      date: log.date || new Date().toISOString().slice(0, 10),
+      date: log.date || getTodayLocalISO(),
       dog: log.dog || dogProfile.name || "",
       health: log.health || "Green",
       emotion: log.emotion || "Green",
@@ -571,10 +591,12 @@ export default function App() {
     setDailyForm(createEmptyDailyForm(""));
     setScheduleForm(createEmptyScheduleForm());
     setMedForm(createEmptyMedForm());
-    setSelectedDate(new Date().toISOString().slice(0, 10));
+    setSelectedDate(getTodayLocalISO());
     setDeletePrompt(null);
     setActiveTab("home");
     setViewStack(["home"]);
+    const now = new Date();
+    setCalendarDate(new Date(now.getFullYear(), now.getMonth(), 1));
   }
 
   function getBackupData() {
@@ -701,7 +723,7 @@ export default function App() {
         setDailyForm(createEmptyDailyForm(importedDogProfile.name || ""));
         setScheduleForm(createEmptyScheduleForm());
         setMedForm(createEmptyMedForm());
-        setSelectedDate(new Date().toISOString().slice(0, 10));
+        setSelectedDate(getTodayLocalISO());
 
         window.alert("Backup imported successfully.");
       } catch {
@@ -733,7 +755,7 @@ export default function App() {
   function handleSetupSubmit(e) {
     e.preventDefault();
     if (!dogProfile.name.trim()) {
-      window.alert("Please enter your dog's name.");
+      window.alert("Please enter your pet's name.");
       return;
     }
   }
@@ -757,9 +779,9 @@ export default function App() {
               <div className="brand-wrap">
                 <div className="brand-icon">🐶</div>
                 <div>
-                  <h1 className="title">Set Up Your Dog Profile</h1>
+                  <h1 className="title">Set Up Your Pet Profile</h1>
                   <p className="subtitle">
-                    Add your dog's details to start tracking health and medications.
+                    Add your pet's details to start tracking health and medications.
                   </p>
                 </div>
               </div>
@@ -769,7 +791,7 @@ export default function App() {
               <div className="profile-photo-wrap">
                 <img
                   src={dogProfile.photo || DEFAULT_DOG_IMAGE}
-                  alt="Dog preview"
+                  alt="Pet preview"
                   className="dog-photo large"
                 />
                 <button
@@ -783,12 +805,24 @@ export default function App() {
 
               <div className="field-grid">
                 <div className="field">
-                  <label>Dog name</label>
+                  <label>Pet name</label>
                   <input
                     value={dogProfile.name}
                     onChange={(e) => updateDogProfile("name", e.target.value)}
                     placeholder="e.g. Yoshi"
                   />
+                </div>
+
+                <div className="field">
+                  <label>Pet type</label>
+                  <select
+                    value={dogProfile.type}
+                    onChange={(e) => updateDogProfile("type", e.target.value)}
+                  >
+                    <option>Dog</option>
+                    <option>Cat</option>
+                    <option>Other</option>
+                  </select>
                 </div>
 
                 <div className="field">
@@ -854,7 +888,7 @@ export default function App() {
               </div>
 
               <button className="primary-button" type="submit">
-                Save Dog Profile
+                Save Pet Profile
               </button>
             </form>
           </div>
@@ -921,7 +955,7 @@ export default function App() {
                     >
                       <img
                         src={dogProfile.photo || DEFAULT_DOG_IMAGE}
-                        alt={dogProfile.name || "Dog"}
+                        alt={dogProfile.name || "Pet"}
                         className="dog-photo home-photo"
                       />
                     </button>
@@ -931,7 +965,8 @@ export default function App() {
                         <div>
                           <h2 className="dog-name">{dogProfile.name}</h2>
                           <p className="dog-meta">
-                            {dogProfile.breed || "Dog"} • {getAgeText(dogProfile.dob)}
+                            {dogProfile.type || "Pet"} • {dogProfile.breed || "Unknown breed"} •{" "}
+                            {getAgeText(dogProfile.dob)}
                           </p>
                         </div>
                         <button
@@ -939,7 +974,7 @@ export default function App() {
                           className="mini-action-button"
                           onClick={() => openView("dog")}
                         >
-                          Edit Dog
+                          Edit Pet
                         </button>
                       </div>
 
@@ -1083,14 +1118,14 @@ export default function App() {
             {activeTab === "dog" && (
               <section className="panel-card">
                 <div className="panel-heading">
-                  <span>🐕</span>
-                  <h3>Dog Profile</h3>
+                  <span>🐾</span>
+                  <h3>Pet Profile</h3>
                 </div>
 
                 <div className="profile-photo-wrap">
                   <img
                     src={dogProfile.photo || DEFAULT_DOG_IMAGE}
-                    alt={dogProfile.name || "Dog"}
+                    alt={dogProfile.name || "Pet"}
                     className="dog-photo large"
                   />
                   <button
@@ -1104,11 +1139,23 @@ export default function App() {
 
                 <div className="field-grid">
                   <div className="field">
-                    <label>Dog name</label>
+                    <label>Pet name</label>
                     <input
                       value={dogProfile.name}
                       onChange={(e) => updateDogProfile("name", e.target.value)}
                     />
+                  </div>
+
+                  <div className="field">
+                    <label>Pet type</label>
+                    <select
+                      value={dogProfile.type}
+                      onChange={(e) => updateDogProfile("type", e.target.value)}
+                    >
+                      <option>Dog</option>
+                      <option>Cat</option>
+                      <option>Other</option>
+                    </select>
                   </div>
 
                   <div className="field">
@@ -1309,6 +1356,31 @@ export default function App() {
                     <h3>Calendar</h3>
                   </div>
 
+                  <div className="calendar-month-bar">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => changeCalendarMonth(-1)}
+                    >
+                      ← Prev
+                    </button>
+
+                    <div className="calendar-month-title">
+                      {calendarDate.toLocaleDateString("en-AU", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => changeCalendarMonth(1)}
+                    >
+                      Next →
+                    </button>
+                  </div>
+
                   <div className="calendar-scroll">
                     <div className="calendar-shell">
                       <div className="calendar-grid-header">
@@ -1350,7 +1422,7 @@ export default function App() {
                               }}
                             >
                               <div className="calendar-date">
-                                {new Date(date + "T00:00:00").getDate()}
+                                {Number(date.split("-")[2])}
                               </div>
 
                               {log ? (
@@ -1785,7 +1857,7 @@ export default function App() {
             {[
               { key: "home", label: "Home", icon: "🏠" },
               { key: "logs", label: "Logs", icon: "📋" },
-              { key: "dog", label: "Dog", icon: "🐕" },
+              { key: "dog", label: "Pet", icon: "🐾" },
               { key: "reports", label: "Reports", icon: "📊" },
             ].map((item) => (
               <button
