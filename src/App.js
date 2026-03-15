@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const colours = {
   Green: "🟢",
@@ -58,6 +58,26 @@ const deleteButtonStyle = {
   border: "1px solid #fecaca",
   background: "#fff1f2",
   color: "#b91c1c",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const topButtonStyle = {
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const darkTopButtonStyle = {
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "none",
+  background: "#0f172a",
+  color: "#ffffff",
   fontWeight: "bold",
   cursor: "pointer",
 };
@@ -233,6 +253,8 @@ function safeRead(key, fallback) {
 }
 
 export default function App() {
+  const importFileRef = useRef(null);
+
   function buildPrintableHtml(
     dogProfile,
     dailyLogs,
@@ -697,6 +719,92 @@ export default function App() {
     setMedForm(createEmptyMedForm());
   }
 
+  function exportBackup() {
+    const backupData = {
+      exportedAt: new Date().toISOString(),
+      version: "1.0",
+      dogProfile,
+      dailyLogs,
+      healthSchedule,
+      medicationHistory,
+    };
+
+    const dogName = dogProfile.name
+      ? dogProfile.name.toLowerCase().replace(/\s+/g, "-")
+      : "dog-health";
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    const filename = `${dogName}-backup-${dateStamp}.json`;
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportClick() {
+    if (importFileRef.current) {
+      importFileRef.current.click();
+    }
+  }
+
+  function importBackup(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result);
+
+        const importedDogProfile =
+          parsed?.dogProfile && typeof parsed.dogProfile === "object"
+            ? { ...emptyDogProfile, ...parsed.dogProfile }
+            : emptyDogProfile;
+
+        const importedDailyLogs = Array.isArray(parsed?.dailyLogs)
+          ? parsed.dailyLogs
+          : [];
+        const importedHealthSchedule = Array.isArray(parsed?.healthSchedule)
+          ? parsed.healthSchedule
+          : [];
+        const importedMedicationHistory = Array.isArray(parsed?.medicationHistory)
+          ? parsed.medicationHistory
+          : [];
+
+        const confirmed = window.confirm(
+          "Import this backup and replace the current data in the app?"
+        );
+        if (!confirmed) return;
+
+        setDogProfile(importedDogProfile);
+        setDailyLogs(importedDailyLogs);
+        setHealthSchedule(importedHealthSchedule);
+        setMedicationHistory(importedMedicationHistory);
+        setSelectedDate(todayString);
+        setDailyForm(createEmptyDailyForm(importedDogProfile.name || ""));
+        setScheduleForm(createEmptyScheduleForm());
+        setMedForm(createEmptyMedForm());
+
+        window.alert("Backup imported successfully.");
+      } catch {
+        window.alert(
+          "That file could not be imported. Please choose a valid YoPaws backup JSON file."
+        );
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  }
+
   function handleSetupSubmit(e) {
     e.preventDefault();
     if (!dogProfile.name.trim()) {
@@ -809,6 +917,14 @@ export default function App() {
 
   return (
     <div style={pageStyle}>
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: "none" }}
+        onChange={importBackup}
+      />
+
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         <div style={{ ...cardStyle, marginBottom: "20px" }}>
           <div
@@ -828,6 +944,9 @@ export default function App() {
                 Track daily wellbeing, medications, reminders, and health
                 history for {dogProfile.name}.
               </p>
+              <div style={{ color: "#64748b", fontSize: "14px" }}>
+                Auto-saves on this device. You can also export a backup file.
+              </div>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
               <button
@@ -839,15 +958,7 @@ export default function App() {
                     medicationHistory
                   )
                 }
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: "14px",
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#0f172a",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
+                style={topButtonStyle}
               >
                 Print Report
               </button>
@@ -860,28 +971,23 @@ export default function App() {
                     medicationHistory
                   )
                 }
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: "14px",
-                  border: "none",
-                  background: "#0f172a",
-                  color: "#ffffff",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
+                style={darkTopButtonStyle}
               >
                 Save as PDF
+              </button>
+              <button onClick={exportBackup} style={topButtonStyle}>
+                Export Backup
+              </button>
+              <button onClick={handleImportClick} style={topButtonStyle}>
+                Import Backup
               </button>
               <button
                 onClick={clearAllSavedData}
                 style={{
-                  padding: "12px 16px",
-                  borderRadius: "14px",
+                  ...topButtonStyle,
                   border: "1px solid #fecaca",
                   background: "#fff1f2",
                   color: "#b91c1c",
-                  fontWeight: "bold",
-                  cursor: "pointer",
                 }}
               >
                 Clear Saved Data
@@ -1763,7 +1869,9 @@ export default function App() {
                 lineHeight: "1.8",
               }}
             >
-              <li>First-time setup screen</li>
+              <li>Local auto-save on the device</li>
+              <li>Export backup to a JSON file</li>
+              <li>Import backup from a JSON file</li>
               <li>Dog profile editing</li>
               <li>Daily health, emotion, and behaviour logging</li>
               <li>Calendar view for saved daily logs</li>
@@ -1771,7 +1879,6 @@ export default function App() {
               <li>Medication history</li>
               <li>Delete logs, schedule items, and medications</li>
               <li>Print report and Save as PDF</li>
-              <li>Local device saving with localStorage</li>
             </ul>
           </div>
         </div>
