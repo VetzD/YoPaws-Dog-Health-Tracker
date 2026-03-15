@@ -10,7 +10,7 @@ body,
   font-family: Inter, Arial, sans-serif;
   background:
     radial-gradient(circle at top, rgba(45, 67, 112, 0.35), transparent 35%),
-    linear-gradient(180deg, #0f1724 0%, #0b1220 100%);
+    linear-gradient(180deg, #071224 0%, #030b18 100%);
   color: #f5f7fb;
 }
 
@@ -31,11 +31,11 @@ textarea {
 }
 
 .app-frame {
-  max-width: 1400px;
+  max-width: 1450px;
   margin: 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 28px;
-  background: rgba(10, 15, 28, 0.72);
+  background: rgba(7, 15, 31, 0.84);
   backdrop-filter: blur(18px);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   overflow: hidden;
@@ -43,19 +43,19 @@ textarea {
 
 .topbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   padding: 24px 28px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.topbar h1 {
+.topbar-copy h1 {
   margin: 0 0 6px;
   font-size: 2rem;
 }
 
-.topbar p {
+.topbar-copy p {
   margin: 0;
   color: #c8d3e4;
 }
@@ -65,18 +65,16 @@ textarea {
   gap: 10px;
 }
 
-.icon-btn {
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  cursor: pointer;
+.topbar-actions--full {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
-.icon-btn:hover {
-  background: rgba(255, 255, 255, 0.11);
+.topbar-actions--full .secondary-btn,
+.topbar-actions--full .danger-btn {
+  min-width: 110px;
 }
 
 .content-grid {
@@ -107,8 +105,11 @@ textarea {
 }
 
 .panel h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
+  margin: 0 0 12px;
+}
+
+.panel p {
+  margin: 10px 0;
 }
 
 .panel-heading {
@@ -146,8 +147,8 @@ textarea {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
   padding: 14px 15px;
   outline: none;
 }
@@ -168,6 +169,30 @@ textarea {
   resize: vertical;
 }
 
+/* Fix dropdown readability */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 44px;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0 0, calc(100% - 14px) center;
+  background-size: auto, 18px;
+}
+
+select option {
+  background-color: #162033;
+  color: #ffffff;
+}
+
+select optgroup {
+  background-color: #162033;
+  color: #ffffff;
+}
+
 .primary-btn,
 .secondary-btn,
 .danger-btn,
@@ -178,6 +203,15 @@ textarea {
   padding: 13px 16px;
   color: #fff;
   cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+.primary-btn:hover,
+.secondary-btn:hover,
+.danger-btn:hover,
+.calendar-nav-btn:hover,
+.calendar-today-btn:hover {
+  transform: translateY(-1px);
 }
 
 .primary-btn {
@@ -211,7 +245,7 @@ textarea {
 }
 
 .danger-btn:hover {
-  background: rgba(185, 76, 76, 0.26);
+  background: rgba(185, 76, 76, 0.28);
 }
 
 .error-text {
@@ -233,6 +267,10 @@ textarea {
   text-align: center;
   font-size: 1.15rem;
   font-weight: 700;
+}
+
+.calendar-nav-btn {
+  min-width: 52px;
 }
 
 .calendar-toolbar {
@@ -291,6 +329,7 @@ textarea {
 .calendar-day-number {
   font-weight: 700;
   margin-bottom: 8px;
+  font-size: 1.05rem;
 }
 
 .calendar-badges {
@@ -344,7 +383,7 @@ textarea {
 }
 
 .selected-day-panel {
-  margin-top: 14px;
+  margin-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 16px;
 }
@@ -409,16 +448,20 @@ textarea {
   .content-grid {
     grid-template-columns: 1fr;
   }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topbar-actions--full {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 720px) {
   .app-shell {
     padding: 12px;
-  }
-
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .form-grid {
@@ -435,5 +478,48 @@ textarea {
 
   .calendar-day-number {
     font-size: 0.9rem;
+  }
+
+  .topbar-actions--full .secondary-btn,
+  .topbar-actions--full .danger-btn {
+    min-width: unset;
+    width: 100%;
+  }
+}
+
+@media print {
+  body,
+  html,
+  #root {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .topbar-actions,
+  .calendar-header-row,
+  .calendar-toolbar,
+  .selected-day-actions,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn {
+    display: none !important;
+  }
+
+  .app-frame,
+  .panel,
+  input,
+  select,
+  textarea,
+  .calendar-cell,
+  .recent-log-card {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+  }
+
+  select option {
+    background: #fff !important;
+    color: #000 !important;
   }
 }
