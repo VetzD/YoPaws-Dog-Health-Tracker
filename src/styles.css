@@ -13,9 +13,6 @@
   --cyan: #67e8f9;
   --danger: #f87171;
   --danger-bg: rgba(248, 113, 113, 0.15);
-  --radius-xl: 32px;
-  --radius-lg: 24px;
-  --radius-md: 18px;
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   --font: Inter, Arial, sans-serif;
 }
@@ -50,32 +47,35 @@ button {
   background:
     radial-gradient(circle at top, rgba(148, 69, 149, 0.12), transparent 30%),
     linear-gradient(180deg, #232831 0%, #1b1f24 100%);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   padding: 16px;
 }
 
-.phone-card {
+.app-container {
   width: 100%;
-  max-width: 420px;
-  min-height: calc(100vh - 32px);
-  border-radius: var(--radius-xl);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.setup-layout {
+  max-width: 900px;
+}
+
+.surface-card {
+  width: 100%;
+  border-radius: 32px;
   border: 1px solid var(--panel-border);
   background: rgba(0, 0, 0, 0.08);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.app-card {
+  min-height: calc(100vh - 32px);
   display: flex;
   flex-direction: column;
 }
 
-.setup-card {
-  max-width: 560px;
-  min-height: auto;
-  padding: 20px;
-}
-
-.app-header {
+.screen-header {
   padding: 20px 18px 16px;
   border-bottom: 1px solid var(--panel-border);
   display: flex;
@@ -85,7 +85,7 @@ button {
 }
 
 .header-left,
-.section-header {
+.brand-wrap {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -104,6 +104,7 @@ button {
   flex-shrink: 0;
 }
 
+.back-button,
 .icon-button {
   width: 40px;
   height: 40px;
@@ -112,11 +113,14 @@ button {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .title {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.18rem;
   line-height: 1.15;
 }
 
@@ -126,7 +130,7 @@ button {
   font-size: 0.82rem;
 }
 
-.app-main {
+.main-content {
   flex: 1;
   padding: 16px;
   display: grid;
@@ -137,7 +141,7 @@ button {
 .panel-card {
   border: 1px solid var(--panel-border);
   background: var(--panel);
-  border-radius: var(--radius-lg);
+  border-radius: 24px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
 }
 
@@ -145,10 +149,20 @@ button {
   padding: 16px;
 }
 
+.panel-card {
+  padding: 16px;
+}
+
 .hero-top {
   display: flex;
   gap: 14px;
   align-items: center;
+}
+
+.dog-photo-button {
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .dog-photo {
@@ -160,6 +174,18 @@ button {
   flex-shrink: 0;
 }
 
+.dog-photo.large {
+  width: 120px;
+  height: 120px;
+}
+
+.profile-photo-wrap {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  margin-bottom: 18px;
+}
+
 .hero-content {
   flex: 1;
   min-width: 0;
@@ -169,6 +195,7 @@ button {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  align-items: flex-start;
 }
 
 .dog-name {
@@ -189,6 +216,16 @@ button {
   justify-content: space-between;
   gap: 12px;
   align-items: flex-end;
+}
+
+.mini-action-button {
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .muted-label {
@@ -222,10 +259,6 @@ button {
   border-radius: 999px;
   background: linear-gradient(to top, var(--brand), var(--brand-2));
   opacity: 0.95;
-}
-
-.panel-card {
-  padding: 16px;
 }
 
 .panel-heading {
@@ -325,11 +358,6 @@ button {
   margin-top: 4px;
 }
 
-.chevron {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 1.4rem;
-}
-
 .quick-grid {
   display: grid;
   gap: 10px;
@@ -395,6 +423,11 @@ button {
 .field {
   display: grid;
   gap: 6px;
+}
+
+.field-grid {
+  display: grid;
+  gap: 14px;
 }
 
 .field label {
@@ -569,9 +602,6 @@ button {
   border-top: 1px solid var(--panel-border);
   background: rgba(0, 0, 0, 0.16);
   padding: 10px 12px 14px;
-}
-
-.bottom-nav {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
@@ -597,16 +627,79 @@ button {
   margin-bottom: 4px;
 }
 
-@media (max-width: 480px) {
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 24px;
+  background: #232831;
+  border: 1px solid var(--panel-border);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.modal-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.modal-card p {
+  margin-top: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (min-width: 760px) {
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .hero-card {
+    grid-column: 1 / -1;
+  }
+
+  .panel-card {
+    height: fit-content;
+  }
+}
+
+@media (max-width: 640px) {
   .app-shell {
     padding: 0;
   }
 
-  .phone-card {
+  .app-container {
     max-width: 100%;
-    min-height: 100vh;
+  }
+
+  .surface-card {
     border-radius: 0;
     border: none;
+  }
+
+  .app-card {
+    min-height: 100dvh;
   }
 
   .dog-name {
