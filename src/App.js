@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./styles.css";
 
-const STORAGE_KEY = "yopaws-health-tracker-pets-v3";
+const STORAGE_KEY = "yopaws-health-tracker-profile-first-v1";
 
 const PET_TYPES = ["Dog", "Cat", "Other"];
+const SEX_OPTIONS = ["Unknown", "Female", "Male"];
+const DESEXED_OPTIONS = ["Unknown", "Yes", "No"];
 const STATUS_OPTIONS = ["Green", "Yellow", "Red"];
 const APPETITE_OPTIONS = ["Normal", "Reduced", "Poor", "Increased"];
 const TOILETING_OPTIONS = ["Normal", "Loose", "Constipated", "Accidents", "Other"];
@@ -62,10 +64,6 @@ function parseAUDate(value) {
   return date;
 }
 
-function isValidAUDate(value) {
-  return !!parseAUDate(value);
-}
-
 function auDateToKey(value) {
   const parsed = parseAUDate(value);
   if (!parsed) return "";
@@ -89,18 +87,6 @@ function createEmptyDailyForm(petName = "") {
     trigger: "None",
     notes: "",
   };
-}
-
-function downloadFile(filename, content, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 function statusClass(value) {
@@ -172,7 +158,7 @@ export default function App() {
   useEffect(() => {
     setDailyForm((prev) => ({
       ...prev,
-      pet: prev.pet || petProfile.name || "",
+      pet: petProfile.name || prev.pet || "",
     }));
   }, [petProfile.name]);
 
@@ -180,9 +166,7 @@ export default function App() {
     const map = {};
     dailyLogs.forEach((log) => {
       const key = auDateToKey(log.date);
-      if (key) {
-        map[key] = log;
-      }
+      if (key) map[key] = log;
     });
     return map;
   }, [dailyLogs]);
@@ -200,7 +184,7 @@ export default function App() {
 
   function buildCalendarDays() {
     const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1);
-    const startDay = firstDayOfMonth.getDay(); // Sunday-first
+    const startDay = firstDayOfMonth.getDay();
     const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate();
 
@@ -238,20 +222,6 @@ export default function App() {
   const calendarDays = buildCalendarDays();
   const todayKey = auDateToKey(formatAUDate(new Date()));
 
-  function goToPreviousMonth() {
-    setCalendarViewDate(new Date(calendarYear, calendarMonth - 1, 1));
-  }
-
-  function goToNextMonth() {
-    setCalendarViewDate(new Date(calendarYear, calendarMonth + 1, 1));
-  }
-
-  function goToCurrentMonth() {
-    const today = new Date();
-    setCalendarViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    setSelectedCalendarDate(formatAUDate(today));
-  }
-
   function handlePetProfileChange(field, value) {
     setPetProfile((prev) => ({
       ...prev,
@@ -260,10 +230,7 @@ export default function App() {
   }
 
   function handleDailyFormChange(field, value) {
-    if (field === "date") {
-      setDateError("");
-    }
-
+    if (field === "date") setDateError("");
     setDailyForm((prev) => ({
       ...prev,
       [field]: value,
@@ -271,7 +238,7 @@ export default function App() {
   }
 
   function handleSaveDailyLog() {
-    if (!isValidAUDate(dailyForm.date)) {
+    if (!parseAUDate(dailyForm.date)) {
       setDateError("Please enter a valid date in DD/MM/YYYY format.");
       return;
     }
@@ -311,23 +278,7 @@ export default function App() {
       window.alert("No saved log for the selected day.");
       return;
     }
-
     setDailyForm({ ...selectedLog });
-    setDateError("");
-  }
-
-  function handleDeleteSelectedDay() {
-    if (!selectedLog) {
-      window.alert("No saved log for the selected day.");
-      return;
-    }
-
-    const confirmed = window.confirm(`Delete log for ${selectedLog.date}?`);
-    if (!confirmed) return;
-
-    setDailyLogs((prev) =>
-      prev.filter((log) => auDateToKey(log.date) !== auDateToKey(selectedLog.date))
-    );
   }
 
   function handleNewBlankForm() {
@@ -335,188 +286,27 @@ export default function App() {
     setDateError("");
   }
 
-  function exportBackup() {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      petProfile,
-      dailyLogs,
-      dailyForm,
-      selectedCalendarDate,
-      calendarViewDate: calendarViewDate.toISOString(),
-    };
-
-    downloadFile(
-      `yopaws-pet-health-backup-${new Date().toISOString().slice(0, 10)}.json`,
-      JSON.stringify(payload, null, 2),
-      "application/json"
-    );
+  function goToPreviousMonth() {
+    setCalendarViewDate(new Date(calendarYear, calendarMonth - 1, 1));
   }
 
-  function exportCSV() {
-    const headers = [
-      "Date",
-      "Pet",
-      "Health",
-      "Emotion",
-      "Behaviour",
-      "Appetite",
-      "Toileting",
-      "Medication",
-      "Trigger",
-      "Notes",
-    ];
-
-    const rows = [...dailyLogs]
-      .sort((a, b) => parseAUDate(a.date) - parseAUDate(b.date))
-      .map((log) => [
-        log.date,
-        log.pet,
-        log.health,
-        log.emotion,
-        log.behaviour,
-        log.appetite,
-        log.toileting,
-        log.medication,
-        log.trigger,
-        (log.notes || "").replace(/\n/g, " "),
-      ]);
-
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
-
-    downloadFile(
-      `yopaws-pet-health-report-${new Date().toISOString().slice(0, 10)}.csv`,
-      csv,
-      "text/csv;charset=utf-8"
-    );
+  function goToNextMonth() {
+    setCalendarViewDate(new Date(calendarYear, calendarMonth + 1, 1));
   }
 
-  function handleImportBackup(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target?.result);
-
-        if (parsed.petProfile) {
-          setPetProfile({ ...emptyPetProfile, ...parsed.petProfile });
-        }
-
-        if (Array.isArray(parsed.dailyLogs)) {
-          setDailyLogs(parsed.dailyLogs);
-        }
-
-        if (parsed.dailyForm) {
-          setDailyForm(parsed.dailyForm);
-        }
-
-        if (parsed.selectedCalendarDate) {
-          setSelectedCalendarDate(parsed.selectedCalendarDate);
-        }
-
-        if (parsed.calendarViewDate) {
-          const importedViewDate = new Date(parsed.calendarViewDate);
-          if (!Number.isNaN(importedViewDate.getTime())) {
-            setCalendarViewDate(
-              new Date(importedViewDate.getFullYear(), importedViewDate.getMonth(), 1)
-            );
-          }
-        } else if (parsed.dailyLogs?.length) {
-          const newest = [...parsed.dailyLogs]
-            .filter((log) => parseAUDate(log.date))
-            .sort((a, b) => parseAUDate(b.date) - parseAUDate(a.date))[0];
-
-          if (newest) {
-            setSelectedCalendarDate(newest.date);
-            const newestDate = parseAUDate(newest.date);
-            if (newestDate) {
-              setCalendarViewDate(
-                new Date(newestDate.getFullYear(), newestDate.getMonth(), 1)
-              );
-            }
-          }
-        }
-
-        window.alert("Backup imported successfully.");
-      } catch (error) {
-        console.error(error);
-        window.alert("Could not import file. Please use a valid backup JSON file.");
-      }
-    };
-
-    reader.readAsText(file);
-    event.target.value = "";
-  }
-
-  function handlePrint() {
-    window.print();
+  function goToCurrentMonth() {
+    const today = new Date();
+    setCalendarViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedCalendarDate(formatAUDate(today));
   }
 
   return (
     <div className="app-shell">
       <div className="app-frame">
-        <input
-          id="import-backup-input"
-          type="file"
-          accept=".json,application/json"
-          style={{ display: "none" }}
-          onChange={handleImportBackup}
-        />
-
         <header className="topbar">
           <div className="topbar-copy">
             <h1>YoPaws Health Tracker</h1>
             <p>Auto-save, backup file, and vet-friendly reports for pets</p>
-          </div>
-
-          <div className="topbar-actions topbar-actions--full">
-            <button className="secondary-btn" type="button" onClick={handleSaveDailyLog}>
-              Save
-            </button>
-
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={() => document.getElementById("import-backup-input")?.click()}
-            >
-              Import
-            </button>
-
-            <button className="secondary-btn" type="button" onClick={exportBackup}>
-              Export
-            </button>
-
-            <button className="secondary-btn" type="button" onClick={exportCSV}>
-              CSV
-            </button>
-
-            <button className="secondary-btn" type="button" onClick={handlePrint}>
-              Print
-            </button>
-
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={handleLoadSelectedDayIntoForm}
-            >
-              Load Selected
-            </button>
-
-            <button
-              className="danger-btn"
-              type="button"
-              onClick={handleDeleteSelectedDay}
-            >
-              Delete Selected
-            </button>
           </div>
         </header>
 
@@ -551,7 +341,7 @@ export default function App() {
                 </label>
 
                 <label>
-                  <span>Breed</span>
+                  <span>Breed / Species Details</span>
                   <input
                     type="text"
                     value={petProfile.breed}
@@ -566,9 +356,11 @@ export default function App() {
                     value={petProfile.sex}
                     onChange={(e) => handlePetProfileChange("sex", e.target.value)}
                   >
-                    <option value="Unknown">Unknown</option>
-                    <option value="Female">Female</option>
-                    <option value="Male">Male</option>
+                    {SEX_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
@@ -598,16 +390,18 @@ export default function App() {
                     value={petProfile.desexed}
                     onChange={(e) => handlePetProfileChange("desexed", e.target.value)}
                   >
-                    <option value="Unknown">Unknown</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
+                    {DESEXED_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
                 <label className="full-width">
                   <span>Profile Notes</span>
                   <textarea
-                    rows="3"
+                    rows="4"
                     value={petProfile.notes}
                     onChange={(e) => handlePetProfileChange("notes", e.target.value)}
                     placeholder="Important medical notes, behaviour notes, diagnosis, sensitivities, etc."
@@ -760,7 +554,7 @@ export default function App() {
 
           <div className="right-column">
             <section className="panel">
-              <h2>🗓️ Calendar</h2>
+              <h2>📅 Calendar</h2>
 
               <div className="calendar-header-row">
                 <button type="button" className="calendar-nav-btn" onClick={goToPreviousMonth}>
@@ -844,22 +638,12 @@ export default function App() {
                       </span>
                     </div>
 
-                    <p>
-                      <strong>Pet:</strong> {selectedLog.pet || "-"}
-                    </p>
-                    <p>
-                      <strong>Appetite:</strong> {selectedLog.appetite || "-"} ·{" "}
-                      <strong>Toileting:</strong> {selectedLog.toileting || "-"}
-                    </p>
-                    <p>
-                      <strong>Trigger:</strong> {selectedLog.trigger || "-"}
-                    </p>
-                    <p>
-                      <strong>Medication:</strong> {selectedLog.medication || "-"}
-                    </p>
-                    <p>
-                      <strong>Notes:</strong> {selectedLog.notes || "-"}
-                    </p>
+                    <p><strong>Pet:</strong> {selectedLog.pet || "-"}</p>
+                    <p><strong>Appetite:</strong> {selectedLog.appetite || "-"}</p>
+                    <p><strong>Toileting:</strong> {selectedLog.toileting || "-"}</p>
+                    <p><strong>Trigger:</strong> {selectedLog.trigger || "-"}</p>
+                    <p><strong>Medication:</strong> {selectedLog.medication || "-"}</p>
+                    <p><strong>Notes:</strong> {selectedLog.notes || "-"}</p>
 
                     <div className="selected-day-actions">
                       <button
@@ -869,60 +653,12 @@ export default function App() {
                       >
                         Load into Form
                       </button>
-                      <button
-                        className="danger-btn"
-                        type="button"
-                        onClick={handleDeleteSelectedDay}
-                      >
-                        Delete
-                      </button>
                     </div>
                   </>
                 ) : (
                   <p>No log saved for this day.</p>
                 )}
               </div>
-            </section>
-
-            <section className="panel">
-              <h2>📊 Recent Logs</h2>
-
-              {dailyLogs.length === 0 ? (
-                <p className="muted-text">No logs saved yet.</p>
-              ) : (
-                <div className="recent-log-list">
-                  {[...dailyLogs]
-                    .sort((a, b) => parseAUDate(b.date) - parseAUDate(a.date))
-                    .slice(0, 7)
-                    .map((log) => (
-                      <button
-                        key={log.id || log.date}
-                        type="button"
-                        className="recent-log-card"
-                        onClick={() => {
-                          setSelectedCalendarDate(log.date);
-                          const parsedDate = parseAUDate(log.date);
-                          if (parsedDate) {
-                            setCalendarViewDate(
-                              new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1)
-                            );
-                          }
-                        }}
-                      >
-                        <div className="recent-log-top">
-                          <strong>{log.date}</strong>
-                          <span>{log.pet || "Pet"}</span>
-                        </div>
-
-                        <div className="recent-log-pills">
-                          <span className={`mini-pill ${statusClass(log.health)}`}>H</span>
-                          <span className={`mini-pill ${statusClass(log.emotion)}`}>E</span>
-                          <span className={`mini-pill ${statusClass(log.behaviour)}`}>B</span>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              )}
             </section>
           </div>
         </div>
