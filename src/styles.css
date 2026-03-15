@@ -500,6 +500,24 @@ button {
   box-shadow: 0 0 0 3px rgba(24, 163, 168, 0.18);
 }
 
+/* safer selects so text doesn't disappear */
+.field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%),
+    rgba(255, 255, 255, 0.05);
+  background-position:
+    calc(100% - 22px) calc(50% - 3px),
+    calc(100% - 16px) calc(50% - 3px),
+    center;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+}
+
 .field select option,
 .field select optgroup {
   color: #111827;
@@ -542,6 +560,25 @@ button {
 
 .button-row > * {
   flex: 1;
+}
+
+/* new calendar month nav */
+.calendar-month-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.calendar-month-title {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text-soft);
+  font-size: 1rem;
 }
 
 .calendar-scroll {
@@ -826,6 +863,15 @@ button {
 
   .button-row {
     flex-direction: column;
+  }
+
+  .calendar-month-bar {
+    gap: 8px;
+  }
+
+  .calendar-month-title {
+    order: -1;
+    width: 100%;
   }
 
   .calendar-shell {
