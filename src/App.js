@@ -187,19 +187,26 @@ function buildPrintableHtml(
     (a.startDate || "").localeCompare(b.startDate || "")
   );
 
+  function statusClass(status) {
+    if (status === "Green") return "report-green";
+    if (status === "Yellow") return "report-yellow";
+    if (status === "Red") return "report-red";
+    return "";
+  }
+
   const logRows = sortedLogs
     .map(
       (log) => `
       <tr>
-        <td>${formatDate(log.date)}</td>
-        <td>${log.health}</td>
-        <td>${log.emotion}</td>
-        <td>${log.behaviour}</td>
-        <td>${log.appetite || "—"}</td>
-        <td>${log.toileting || "—"}</td>
-        <td>${log.medication || "—"}</td>
-        <td>${log.trigger || "—"}</td>
-        <td>${log.notes || "—"}</td>
+        <td>${escapeHtml(formatDate(log.date))}</td>
+        <td class="${statusClass(log.health)}">${escapeHtml(log.health)}</td>
+        <td class="${statusClass(log.emotion)}">${escapeHtml(log.emotion)}</td>
+        <td class="${statusClass(log.behaviour)}">${escapeHtml(log.behaviour)}</td>
+        <td>${escapeHtml(log.appetite || "—")}</td>
+        <td>${escapeHtml(log.toileting || "—")}</td>
+        <td>${escapeHtml(log.medication || "—")}</td>
+        <td>${escapeHtml(log.trigger || "—")}</td>
+        <td>${escapeHtml(log.notes || "—")}</td>
       </tr>
     `
     )
@@ -209,13 +216,13 @@ function buildPrintableHtml(
     .map(
       (item) => `
       <tr>
-        <td>${item.itemName || "—"}</td>
-        <td>${item.type || "—"}</td>
-        <td>${item.dateGiven ? formatDate(item.dateGiven) : "—"}</td>
-        <td>${item.nextDueDate ? formatDate(item.nextDueDate) : "—"}</td>
-        <td>${item.repeatFrequency || "—"}</td>
-        <td>${item.reminder || "—"}</td>
-        <td>${item.notes || "—"}</td>
+        <td>${escapeHtml(item.itemName || "—")}</td>
+        <td>${escapeHtml(item.type || "—")}</td>
+        <td>${escapeHtml(item.dateGiven ? formatDate(item.dateGiven) : "—")}</td>
+        <td>${escapeHtml(item.nextDueDate ? formatDate(item.nextDueDate) : "—")}</td>
+        <td>${escapeHtml(item.repeatFrequency || "—")}</td>
+        <td>${escapeHtml(item.reminder || "—")}</td>
+        <td>${escapeHtml(item.notes || "—")}</td>
       </tr>
     `
     )
@@ -225,15 +232,15 @@ function buildPrintableHtml(
     .map(
       (med) => `
       <tr>
-        <td>${med.medicationName || "—"}</td>
-        <td>${med.dose || "—"}</td>
-        <td>${med.frequency || "—"}</td>
-        <td>${med.foodInstruction || "—"}</td>
-        <td>${med.startDate ? formatDate(med.startDate) : "—"}</td>
-        <td>${med.endDate ? formatDate(med.endDate) : "Ongoing"}</td>
-        <td>${med.reason || "—"}</td>
-        <td>${med.prescribedBy || "—"}</td>
-        <td>${med.notes || "—"}</td>
+        <td>${escapeHtml(med.medicationName || "—")}</td>
+        <td>${escapeHtml(med.dose || "—")}</td>
+        <td>${escapeHtml(med.frequency || "—")}</td>
+        <td>${escapeHtml(med.foodInstruction || "—")}</td>
+        <td>${escapeHtml(med.startDate ? formatDate(med.startDate) : "—")}</td>
+        <td>${escapeHtml(med.endDate ? formatDate(med.endDate) : "Ongoing")}</td>
+        <td>${escapeHtml(med.reason || "—")}</td>
+        <td>${escapeHtml(med.prescribedBy || "—")}</td>
+        <td>${escapeHtml(med.notes || "—")}</td>
       </tr>
     `
     )
@@ -242,29 +249,101 @@ function buildPrintableHtml(
   return `
     <html>
       <head>
-        <title>${dogProfile.name || "Pet"} Health Report</title>
+        <title>${escapeHtml(dogProfile.name || "Pet")} Health Report</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-          h1, h2 { margin-bottom: 8px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 12px; vertical-align: top; }
-          th { background: #f3f4f6; }
-          .meta div { margin-bottom: 6px; }
+          body {
+            font-family: Arial, sans-serif;
+            padding: 24px;
+            color: #111827;
+            background: #ffffff;
+          }
+
+          h1, h2 {
+            margin-bottom: 8px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+          }
+
+          th, td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+            vertical-align: top;
+          }
+
+          th {
+            background: #f3f4f6;
+          }
+
+          .meta div {
+            margin-bottom: 6px;
+          }
+
+          .report-green {
+            background: #d1fae5 !important;
+            color: #065f46;
+            font-weight: 700;
+          }
+
+          .report-yellow {
+            background: #fef3c7 !important;
+            color: #92400e;
+            font-weight: 700;
+          }
+
+          .report-red {
+            background: #fee2e2 !important;
+            color: #991b1b;
+            font-weight: 700;
+          }
+
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            .report-green {
+              background: #d1fae5 !important;
+              color: #065f46 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            .report-yellow {
+              background: #fef3c7 !important;
+              color: #92400e !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            .report-red {
+              background: #fee2e2 !important;
+              color: #991b1b !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
         </style>
       </head>
       <body>
-        <h1>${dogProfile.name || "Pet"} Health Report</h1>
+        <h1>${escapeHtml(dogProfile.name || "Pet")} Health Report</h1>
         <div class="meta">
-          <div><strong>Pet type:</strong> ${dogProfile.type || "—"}</div>
-          <div><strong>Breed:</strong> ${dogProfile.breed || "—"}</div>
-          <div><strong>Sex:</strong> ${dogProfile.sex || "—"}</div>
+          <div><strong>Pet type:</strong> ${escapeHtml(dogProfile.type || "—")}</div>
+          <div><strong>Breed:</strong> ${escapeHtml(dogProfile.breed || "—")}</div>
+          <div><strong>Sex:</strong> ${escapeHtml(dogProfile.sex || "—")}</div>
           <div><strong>Date of birth:</strong> ${
-            dogProfile.dob ? formatDate(dogProfile.dob) : "—"
+            dogProfile.dob ? escapeHtml(formatDate(dogProfile.dob)) : "—"
           }</div>
-          <div><strong>Age:</strong> ${getAgeText(dogProfile.dob)}</div>
-          <div><strong>Weight:</strong> ${dogProfile.weight || "—"}</div>
-          <div><strong>Desexed:</strong> ${dogProfile.desexed || "—"}</div>
-          <div><strong>Notes:</strong> ${dogProfile.notes || "—"}</div>
+          <div><strong>Age:</strong> ${escapeHtml(getAgeText(dogProfile.dob))}</div>
+          <div><strong>Weight:</strong> ${escapeHtml(dogProfile.weight || "—")}</div>
+          <div><strong>Desexed:</strong> ${escapeHtml(dogProfile.desexed || "—")}</div>
+          <div><strong>Notes:</strong> ${escapeHtml(dogProfile.notes || "—")}</div>
         </div>
 
         <h2>Daily Logs</h2>
