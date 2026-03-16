@@ -173,6 +173,16 @@ function getStatusClass(status) {
   return "chip-red";
 }
 
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "—";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildPrintableHtml(
   dogProfile,
   dailyLogs,
@@ -815,53 +825,56 @@ export default function App() {
     reader.readAsText(file);
   }
 
- function handlePrintReport() {
-  const html = buildPrintableHtml(
-    dogProfile,
-    dailyLogs,
-    healthSchedule,
-    medicationHistory
-  );
+  function handlePrintReport() {
+    const html = buildPrintableHtml(
+      dogProfile,
+      dailyLogs,
+      healthSchedule,
+      medicationHistory
+    );
 
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    window.alert("Could not open the report window. Please allow pop-ups or use Download Report instead.");
-    return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.alert(
+        "Could not open the report window. Please allow pop-ups or use Download Report instead."
+      );
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 500);
   }
 
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-
-  setTimeout(() => {
-    printWindow.focus();
-    printWindow.print();
-  }, 500);
-}
   function handleDownloadReport() {
-  const html = buildPrintableHtml(
-    dogProfile,
-    dailyLogs,
-    healthSchedule,
-    medicationHistory
-  );
+    const html = buildPrintableHtml(
+      dogProfile,
+      dailyLogs,
+      healthSchedule,
+      medicationHistory
+    );
 
-  const fileName = `${(dogProfile.name || "pet")
-    .toLowerCase()
-    .replace(/\s+/g, "-")}-health-report.html`;
+    const fileName = `${(dogProfile.name || "pet")
+      .toLowerCase()
+      .replace(/\s+/g, "-")}-health-report.html`;
 
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
 
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   function handleSetupSubmit(e) {
     e.preventDefault();
@@ -1911,15 +1924,15 @@ export default function App() {
                     your vet.
                   </p>
 
-                    <div className="button-stack">
-                      <button className="primary-button" onClick={handlePrintReport} type="button">
-                        View / Print Report
-                      </button>
-                    
-                      <button className="secondary-button" onClick={handleDownloadReport} type="button">
-                        Download Report
-                      </button>
-                    </div>
+                  <div className="button-stack">
+                    <button className="primary-button" onClick={handlePrintReport} type="button">
+                      View / Print Report
+                    </button>
+
+                    <button className="secondary-button" onClick={handleDownloadReport} type="button">
+                      Download Report
+                    </button>
+                  </div>
 
                   <div className="button-stack">
                     <button className="secondary-button" type="button" onClick={exportBackup}>
